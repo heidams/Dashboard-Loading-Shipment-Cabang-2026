@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Shipment 2026 (Live Sync)</title>
-    <!-- Library Chart.js & PapaParse -->
+    <title>Dashboard Monitoring Loading Shipment 2026</title>
+    <!-- Library External: Chart.js & PapaParse -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
         body { background-color: #f8fafc; color: #1e293b; padding: 20px; }
         
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         h1 { font-size: 22px; color: #0f172a; font-weight: 700; }
         
-        /* Auto Sync Indicator */
+        /* Sync Status Badge */
         .sync-status { display: flex; align-items: center; gap: 8px; background: #ffffff; padding: 8px 16px; border-radius: 20px; border: 1px solid #e2e8f0; font-size: 13px; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .dot { width: 10px; height: 10px; border-radius: 50%; background-color: #22c55e; }
         .dot.syncing { animation: blink 1s infinite; background-color: #eab308; }
         @keyframes blink { 50% { opacity: 0.3; } }
 
-        /* Metric Cards */
+        /* KPI Stat Cards */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .card { background: #fff; padding: 18px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .card h3 { font-size: 12px; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -40,20 +40,24 @@
         /* Data Table */
         .table-container { background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-        th, td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; }
-        th { background-color: #0f172a; color: #fff; font-weight: 600; white-space: nowrap; }
+        th, td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+        th { background-color: #0f172a; color: #fff; font-weight: 600; }
         tr:hover { background-color: #f8fafc; }
 
-        /* Status Badge */
+        /* Status Badge & Image Buttons */
         .badge { padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 11px; display: inline-block; }
         .badge-achieve { background-color: #dcfce7; color: #15803d; }
         .badge-not-achieve { background-color: #fee2e2; color: #b91c1c; }
+        
+        .btn-img { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background-color: #eff6ff; color: #2563eb; text-decoration: none; font-size: 11px; font-weight: 600; border: 1px solid #bfdbfe; }
+        .btn-img:hover { background-color: #dbeafe; }
+        .no-img { color: #94a3b8; font-style: italic; font-size: 12px; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Dashboard Monitoring Data Loading Shipment 2026</h1>
+        <h1>Dashboard Monitoring Loading Shipment 2026</h1>
         <div class="sync-status">
             <div id="sync-dot" class="dot"></div>
             <span id="sync-text">Terhubung & Terupdate</span>
@@ -61,7 +65,7 @@
         </div>
     </header>
 
-    <!-- Stat Cards -->
+    <!-- KPI Metric Cards -->
     <div class="stats-grid">
         <div class="card">
             <h3>Total Shipment</h3>
@@ -81,7 +85,7 @@
         </div>
     </div>
 
-    <!-- Charts Section -->
+    <!-- Visual Charts -->
     <div class="charts-grid">
         <div class="chart-card">
             <h2>Pencapaian Target per PIC</h2>
@@ -117,45 +121,51 @@
         </div>
     </div>
 
-    <!-- Table -->
+    <!-- Data Table -->
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>Code</th>
                     <th>Tanggal</th>
                     <th>Nama PIC</th>
                     <th>Tujuan Pengiriman</th>
                     <th>Jenis Mobil</th>
+                    <th>Jumlah Box</th>
                     <th>Durasi Loading</th>
-                    <th>Status Target</th>
+                    <th>Target</th>
                     <th>Keterangan</th>
+                    <th>Gambar Mulai</th>
+                    <th>Gambar Selesai</th>
                 </tr>
             </thead>
             <tbody id="data-table">
-                <!-- Data dimasukkan via JS -->
+                <!-- Data dimasukkan secara dinamis -->
             </tbody>
         </table>
     </div>
 
     <script>
-        // LINK GOOGLE SHEETS PUBLISHED CSV
-        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
+        // LINK CSV BARU DARI GOOGLE SHEETS
+        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=1227275087&single=true&output=csv";
         
         let allData = [];
         let picChartInstance = null;
         let tujuanChartInstance = null;
 
-        // Ambil Data langsung dari Google Sheets CSV
+        // Fetch Data menggunakan Corsproxy agar kompatibel dengan file:// dan web hosting
         async function fetchMasterData() {
             const syncDot = document.getElementById('sync-dot');
             const syncText = document.getElementById('sync-text');
             syncDot.classList.add('syncing');
             syncText.innerText = "Memperbarui Data...";
 
+            const targetUrl = GOOGLE_SHEET_CSV_URL + '&t=' + new Date().getTime();
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+
             try {
-                // Gunakan query param timestamp agar terhindar dari cache browser
-                const response = await fetch(GOOGLE_SHEET_CSV_URL + '&t=' + new Date().getTime());
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error("Gagal mengambil respon data");
+                
                 const csvText = await response.text();
 
                 Papa.parse(csvText, {
@@ -164,14 +174,16 @@
                     complete: function(results) {
                         allData = results.data
                             .map(row => ({
-                                code: row["Code"] || "-",
                                 tanggal: row["Tanggal"] || "-",
                                 pic: (row["Nama PIC"] || "").trim(),
                                 tujuan: (row["Tujuan Pengiriman"] || "").trim(),
                                 mobil: row["Jenis Mobil"] || "-",
+                                box: row["Jumlah Box"] || "0",
                                 durasi: row["Durasi Loading"] || "-",
                                 status: (row["Target"] || "").trim(),
-                                ket: row["Keterangan"] || "-"
+                                ket: row["Keterangan"] || "-",
+                                imgMulai: row["Keterangan Gambar Mulai"] || "",
+                                imgSelesai: row["Keterangan Gambar Selesai"] || ""
                             }))
                             .filter(item => item.pic !== "" && item.pic !== "-" && item.status !== "");
 
@@ -179,6 +191,7 @@
                         applyFilters();
 
                         syncDot.classList.remove('syncing');
+                        syncDot.style.backgroundColor = "#22c55e";
                         syncText.innerText = "Terhubung & Terupdate";
                         document.getElementById('last-update').innerText = `(${new Date().toLocaleTimeString()})`;
                     }
@@ -186,11 +199,12 @@
             } catch (error) {
                 console.error("Gagal sinkronisasi data:", error);
                 syncText.innerText = "Gagal Sinkronisasi";
+                syncDot.classList.remove('syncing');
                 syncDot.style.backgroundColor = "#ef4444";
             }
         }
 
-        // Update Pilihan Filter Dropdown Secara Dinamis
+        // Update Dropdown Filters Secara Dinamis
         function updateDropdowns() {
             const currentPic = document.getElementById('filter-pic').value;
             const currentTujuan = document.getElementById('filter-tujuan').value;
@@ -211,7 +225,7 @@
             });
         }
 
-        // Terapkan Filter & Render Komponen Dashboard
+        // Terapkan Filter & Render Visual
         function applyFilters() {
             const selectedPic = document.getElementById('filter-pic').value;
             const selectedTujuan = document.getElementById('filter-tujuan').value;
@@ -229,30 +243,41 @@
             renderCharts(filteredData);
         }
 
-        // Render Tabel Data
+        // Render Data Tabel
         function renderTable(data) {
             const tbody = document.getElementById('data-table');
             tbody.innerHTML = '';
 
             data.forEach(item => {
                 const badgeClass = item.status === 'Achieve' ? 'badge-achieve' : 'badge-not-achieve';
+                
+                const btnMulai = item.imgMulai && item.imgMulai.startsWith('http') 
+                    ? `<a href="${item.imgMulai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
+                    : `<span class="no-img">-</span>`;
+
+                const btnSelesai = item.imgSelesai && item.imgSelesai.startsWith('http') 
+                    ? `<a href="${item.imgSelesai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
+                    : `<span class="no-img">-</span>`;
+
                 const row = `
                     <tr>
-                        <td>${item.code}</td>
                         <td>${item.tanggal}</td>
                         <td><strong>${item.pic}</strong></td>
                         <td>${item.tujuan}</td>
                         <td>${item.mobil}</td>
+                        <td>${item.box}</td>
                         <td>${item.durasi}</td>
                         <td><span class="badge ${badgeClass}">${item.status}</span></td>
                         <td>${item.ket}</td>
+                        <td>${btnMulai}</td>
+                        <td>${btnSelesai}</td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
             });
         }
 
-        // Render Card Statistik Total & % Success Rate
+        // Render Statistik Utama
         function renderStats(data) {
             const total = data.length;
             const achieve = data.filter(d => d.status === 'Achieve').length;
@@ -265,9 +290,8 @@
             document.getElementById('rate-achieve').innerText = `${rate}%`;
         }
 
-        // Render Visual Grafik (Bar Chart & Doughnut)
+        // Render Grafik Bar & Doughnut
         function renderCharts(data) {
-            // Processing Data Chart PIC
             const picMap = {};
             data.forEach(d => {
                 if (!picMap[d.pic]) picMap[d.pic] = { achieve: 0, notAchieve: 0 };
@@ -293,7 +317,6 @@
                 options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true } } }
             });
 
-            // Processing Data Chart Tujuan
             const tujuanMap = {};
             data.forEach(d => {
                 tujuanMap[d.tujuan] = (tujuanMap[d.tujuan] || 0) + 1;
@@ -314,10 +337,10 @@
             });
         }
 
-        // Jalankan Pertama Kali
+        // Inisialisasi Pertama
         fetchMasterData();
 
-        // Auto Poll / Perbarui Data Otomatis Setiap 15 Detik
+        // Auto Refresh Setiap 15 Detik
         setInterval(fetchMasterData, 15000); 
     </script>
 </body>
