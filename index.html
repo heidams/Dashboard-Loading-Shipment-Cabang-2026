@@ -173,7 +173,6 @@
             return "";
         }
 
-        // Ekstraksi nama bulan dari format tanggal (DD/MM/YYYY)
         function parseMonth(dateStr) {
             if (!dateStr || dateStr === "-") return "Lainnya";
             const parts = dateStr.split(/[\/\-\.]/);
@@ -262,7 +261,6 @@
             const currentPic = document.getElementById('filter-pic').value;
             const currentTujuan = document.getElementById('filter-tujuan').value;
 
-            // Sort bulan sesuai urutan kalender
             const bulanSet = new Set(allData.map(d => d.bulan));
             const sortedBulan = namaBulan.filter(b => bulanSet.has(b));
 
