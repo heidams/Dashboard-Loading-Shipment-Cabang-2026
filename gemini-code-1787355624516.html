@@ -1,347 +1,219 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Loading Shipment 2026</title>
-    <!-- Library External: Chart.js & PapaParse -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <style>
-        * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
-        body { background-color: #f8fafc; color: #1e293b; padding: 20px; }
-        
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        h1 { font-size: 22px; color: #0f172a; font-weight: 700; }
-        
-        /* Sync Status Badge */
-        .sync-status { display: flex; align-items: center; gap: 8px; background: #ffffff; padding: 8px 16px; border-radius: 20px; border: 1px solid #e2e8f0; font-size: 13px; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .dot { width: 10px; height: 10px; border-radius: 50%; background-color: #22c55e; }
-        .dot.syncing { animation: blink 1s infinite; background-color: #eab308; }
-        @keyframes blink { 50% { opacity: 0.3; } }
+<script>
+    // LINK CSV GOOGLE SHEETS
+    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=1227275087&single=true&output=csv";
+    
+    let allData = [];
+    let picChartInstance = null;
+    let tujuanChartInstance = null;
 
-        /* KPI Stat Cards */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
-        .card { background: #fff; padding: 18px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .card h3 { font-size: 12px; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .card p { font-size: 26px; font-weight: 700; color: #0f172a; }
-
-        /* Charts Layout */
-        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px; }
-        .chart-card { background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .chart-card h2 { font-size: 15px; margin-bottom: 15px; color: #334155; }
-
-        /* Filter Section */
-        .filter-container { background: #fff; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .filter-group { flex: 1; min-width: 160px; }
-        .filter-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #475569; }
-        .filter-group select { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 13px; background-color: #fff; }
-
-        /* Data Table */
-        .table-container { background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-        th, td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
-        th { background-color: #0f172a; color: #fff; font-weight: 600; }
-        tr:hover { background-color: #f8fafc; }
-
-        /* Status Badge & Image Buttons */
-        .badge { padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 11px; display: inline-block; }
-        .badge-achieve { background-color: #dcfce7; color: #15803d; }
-        .badge-not-achieve { background-color: #fee2e2; color: #b91c1c; }
-        
-        .btn-img { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background-color: #eff6ff; color: #2563eb; text-decoration: none; font-size: 11px; font-weight: 600; border: 1px solid #bfdbfe; }
-        .btn-img:hover { background-color: #dbeafe; }
-        .no-img { color: #94a3b8; font-style: italic; font-size: 12px; }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>Dashboard Monitoring Loading Shipment 2026</h1>
-        <div class="sync-status">
-            <div id="sync-dot" class="dot"></div>
-            <span id="sync-text">Terhubung & Terupdate</span>
-            <span id="last-update" style="color: #94a3b8; font-size: 11px;">(Loading...)</span>
-        </div>
-    </header>
-
-    <!-- KPI Metric Cards -->
-    <div class="stats-grid">
-        <div class="card">
-            <h3>Total Shipment</h3>
-            <p id="total-shipment">0</p>
-        </div>
-        <div class="card">
-            <h3>Achieve Target</h3>
-            <p id="total-achieve" style="color: #16a34a;">0</p>
-        </div>
-        <div class="card">
-            <h3>Not Achieve</h3>
-            <p id="total-not-achieve" style="color: #dc2626;">0</p>
-        </div>
-        <div class="card">
-            <h3>% Achievement Rate</h3>
-            <p id="rate-achieve" style="color: #2563eb;">0%</p>
-        </div>
-    </div>
-
-    <!-- Visual Charts -->
-    <div class="charts-grid">
-        <div class="chart-card">
-            <h2>Pencapaian Target per PIC</h2>
-            <canvas id="picChart" height="200"></canvas>
-        </div>
-        <div class="chart-card">
-            <h2>Distribusi Tujuan Pengiriman</h2>
-            <canvas id="tujuanChart" height="200"></canvas>
-        </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="filter-container">
-        <div class="filter-group">
-            <label for="filter-pic">Nama PIC</label>
-            <select id="filter-pic" onchange="applyFilters()">
-                <option value="ALL">Semua PIC</option>
-            </select>
-        </div>
-        <div class="filter-group">
-            <label for="filter-tujuan">Tujuan Pengiriman</label>
-            <select id="filter-tujuan" onchange="applyFilters()">
-                <option value="ALL">Semua Tujuan</option>
-            </select>
-        </div>
-        <div class="filter-group">
-            <label for="filter-status">Status Target</label>
-            <select id="filter-status" onchange="applyFilters()">
-                <option value="ALL">Semua Status</option>
-                <option value="Achieve">Achieve</option>
-                <option value="Not Achieve">Not Achieve</option>
-            </select>
-        </div>
-    </div>
-
-    <!-- Data Table -->
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Tanggal</th>
-                    <th>Nama PIC</th>
-                    <th>Tujuan Pengiriman</th>
-                    <th>Jenis Mobil</th>
-                    <th>Jumlah Box</th>
-                    <th>Durasi Loading</th>
-                    <th>Target</th>
-                    <th>Keterangan</th>
-                    <th>Gambar Mulai</th>
-                    <th>Gambar Selesai</th>
-                </tr>
-            </thead>
-            <tbody id="data-table">
-                <!-- Data dimasukkan secara dinamis -->
-            </tbody>
-        </table>
-    </div>
-
-    <script>
-        // LINK CSV BARU DARI GOOGLE SHEETS
-        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=1227275087&single=true&output=csv";
-        
-        let allData = [];
-        let picChartInstance = null;
-        let tujuanChartInstance = null;
-
-        // Fetch Data menggunakan Corsproxy agar kompatibel dengan file:// dan web hosting
-        async function fetchMasterData() {
-            const syncDot = document.getElementById('sync-dot');
-            const syncText = document.getElementById('sync-text');
-            syncDot.classList.add('syncing');
-            syncText.innerText = "Memperbarui Data...";
-
-            const targetUrl = GOOGLE_SHEET_CSV_URL + '&t=' + new Date().getTime();
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-
-            try {
-                const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error("Gagal mengambil respon data");
-                
-                const csvText = await response.text();
-
-                Papa.parse(csvText, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        allData = results.data
-                            .map(row => ({
-                                tanggal: row["Tanggal"] || "-",
-                                pic: (row["Nama PIC"] || "").trim(),
-                                tujuan: (row["Tujuan Pengiriman"] || "").trim(),
-                                mobil: row["Jenis Mobil"] || "-",
-                                box: row["Jumlah Box"] || "0",
-                                durasi: row["Durasi Loading"] || "-",
-                                status: (row["Target"] || "").trim(),
-                                ket: row["Keterangan"] || "-",
-                                imgMulai: row["Keterangan Gambar Mulai"] || "",
-                                imgSelesai: row["Keterangan Gambar Selesai"] || ""
-                            }))
-                            .filter(item => item.pic !== "" && item.pic !== "-" && item.status !== "");
-
-                        updateDropdowns();
-                        applyFilters();
-
-                        syncDot.classList.remove('syncing');
-                        syncDot.style.backgroundColor = "#22c55e";
-                        syncText.innerText = "Terhubung & Terupdate";
-                        document.getElementById('last-update').innerText = `(${new Date().toLocaleTimeString()})`;
-                    }
-                });
-            } catch (error) {
-                console.error("Gagal sinkronisasi data:", error);
-                syncText.innerText = "Gagal Sinkronisasi";
-                syncDot.classList.remove('syncing');
-                syncDot.style.backgroundColor = "#ef4444";
+    // Helper untuk mencari value dari key (Abaikan Huruf Besar/Kecil & Spasi)
+    function getRowValue(row, possibleKeys) {
+        const keys = Object.keys(row);
+        for (let pKey of possibleKeys) {
+            const foundKey = keys.find(k => k.trim().toLowerCase() === pKey.toLowerCase());
+            if (foundKey && row[foundKey]) {
+                return row[foundKey].toString().trim();
             }
         }
+        return "";
+    }
 
-        // Update Dropdown Filters Secara Dinamis
-        function updateDropdowns() {
-            const currentPic = document.getElementById('filter-pic').value;
-            const currentTujuan = document.getElementById('filter-tujuan').value;
+    async function fetchMasterData() {
+        const syncDot = document.getElementById('sync-dot');
+        const syncText = document.getElementById('sync-text');
+        syncDot.classList.add('syncing');
+        syncText.innerText = "Memperbarui Data...";
 
-            const picSet = new Set(allData.map(d => d.pic));
-            const tujuanSet = new Set(allData.map(d => d.tujuan));
+        // Mengambil CSV langsung tanpa proxy untuk menghindari isu CORS Proxy terblokir
+        const targetUrl = GOOGLE_SHEET_CSV_URL + '&t=' + new Date().getTime();
 
-            const picSelect = document.getElementById('filter-pic');
-            picSelect.innerHTML = '<option value="ALL">Semua PIC</option>';
-            picSet.forEach(pic => {
-                picSelect.innerHTML += `<option value="${pic}" ${pic === currentPic ? 'selected' : ''}>${pic}</option>`;
+        try {
+            const response = await fetch(targetUrl);
+            if (!response.ok) throw new Error("Gagal mengambil respon data dari Google Sheets");
+            
+            const csvText = await response.text();
+
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    console.log("Raw CSV Data:", results.data); // Cek konsol jika masih ada masalah
+
+                    allData = results.data.map(row => {
+                        const pic = getRowValue(row, ["Nama PIC", "PIC"]);
+                        const status = getRowValue(row, ["Target", "Status Target", "Status"]);
+                        const tujuan = getRowValue(row, ["Tujuan Pengiriman", "Tujuan"]);
+                        
+                        return {
+                            tanggal: getRowValue(row, ["Tanggal"]) || "-",
+                            pic: pic || "Tanpa PIC",
+                            tujuan: tujuan || "Tanpa Tujuan",
+                            mobil: getRowValue(row, ["Jenis Mobil", "Mobil"]) || "-",
+                            box: getRowValue(row, ["Jumlah Box", "Box"]) || "0",
+                            durasi: getRowValue(row, ["Durasi Loading", "Durasi"]) || "-",
+                            status: status || "Pending",
+                            ket: getRowValue(row, ["Keterangan"]) || "-",
+                            imgMulai: getRowValue(row, ["Keterangan Gambar Mulai", "Gambar Mulai"]),
+                            imgSelesai: getRowValue(row, ["Keterangan Gambar Selesai", "Gambar Selesai"])
+                        };
+                    })
+                    // Filter hanya membuang baris yang benar-benar kosong total
+                    .filter(item => item.tanggal !== "-" || item.pic !== "Tanpa PIC");
+
+                    updateDropdowns();
+                    applyFilters();
+
+                    syncDot.classList.remove('syncing');
+                    syncDot.style.backgroundColor = "#22c55e";
+                    syncText.innerText = "Terhubung & Terupdate";
+                    document.getElementById('last-update').innerText = `(${new Date().toLocaleTimeString()})`;
+                }
             });
+        } catch (error) {
+            console.error("Gagal sinkronisasi data:", error);
+            syncText.innerText = "Gagal Sinkronisasi";
+            syncDot.classList.remove('syncing');
+            syncDot.style.backgroundColor = "#ef4444";
+        }
+    }
 
-            const tujuanSelect = document.getElementById('filter-tujuan');
-            tujuanSelect.innerHTML = '<option value="ALL">Semua Tujuan</option>';
-            tujuanSet.forEach(tj => {
-                tujuanSelect.innerHTML += `<option value="${tj}" ${tj === currentTujuan ? 'selected' : ''}>${tj}</option>`;
-            });
+    function updateDropdowns() {
+        const currentPic = document.getElementById('filter-pic').value;
+        const currentTujuan = document.getElementById('filter-tujuan').value;
+
+        const picSet = new Set(allData.map(d => d.pic));
+        const tujuanSet = new Set(allData.map(d => d.tujuan));
+
+        const picSelect = document.getElementById('filter-pic');
+        picSelect.innerHTML = '<option value="ALL">Semua PIC</option>';
+        picSet.forEach(pic => {
+            picSelect.innerHTML += `<option value="${pic}" ${pic === currentPic ? 'selected' : ''}>${pic}</option>`;
+        });
+
+        const tujuanSelect = document.getElementById('filter-tujuan');
+        tujuanSelect.innerHTML = '<option value="ALL">Semua Tujuan</option>';
+        tujuanSet.forEach(tj => {
+            tujuanSelect.innerHTML += `<option value="${tj}" ${tj === currentTujuan ? 'selected' : ''}>${tj}</option>`;
+        });
+    }
+
+    function applyFilters() {
+        const selectedPic = document.getElementById('filter-pic').value;
+        const selectedTujuan = document.getElementById('filter-tujuan').value;
+        const selectedStatus = document.getElementById('filter-status').value;
+
+        const filteredData = allData.filter(item => {
+            const matchPic = selectedPic === 'ALL' || item.pic === selectedPic;
+            const matchTujuan = selectedTujuan === 'ALL' || item.tujuan === selectedTujuan;
+            const matchStatus = selectedStatus === 'ALL' || item.status.toLowerCase() === selectedStatus.toLowerCase();
+            return matchPic && matchTujuan && matchStatus;
+        });
+
+        renderTable(filteredData);
+        renderStats(filteredData);
+        renderCharts(filteredData);
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('data-table');
+        tbody.innerHTML = '';
+
+        if(data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 20px;">Tidak ada data yang cocok / data kosong.</td></tr>`;
+            return;
         }
 
-        // Terapkan Filter & Render Visual
-        function applyFilters() {
-            const selectedPic = document.getElementById('filter-pic').value;
-            const selectedTujuan = document.getElementById('filter-tujuan').value;
-            const selectedStatus = document.getElementById('filter-status').value;
+        data.forEach(item => {
+            const isAchieve = item.status.toLowerCase() === 'achieve';
+            const badgeClass = isAchieve ? 'badge-achieve' : 'badge-not-achieve';
+            
+            const btnMulai = item.imgMulai && item.imgMulai.startsWith('http') 
+                ? `<a href="${item.imgMulai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
+                : `<span class="no-img">-</span>`;
 
-            const filteredData = allData.filter(item => {
-                const matchPic = selectedPic === 'ALL' || item.pic === selectedPic;
-                const matchTujuan = selectedTujuan === 'ALL' || item.tujuan === selectedTujuan;
-                const matchStatus = selectedStatus === 'ALL' || item.status === selectedStatus;
-                return matchPic && matchTujuan && matchStatus;
-            });
+            const btnSelesai = item.imgSelesai && item.imgSelesai.startsWith('http') 
+                ? `<a href="${item.imgSelesai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
+                : `<span class="no-img">-</span>`;
 
-            renderTable(filteredData);
-            renderStats(filteredData);
-            renderCharts(filteredData);
-        }
+            const row = `
+                <tr>
+                    <td>${item.tanggal}</td>
+                    <td><strong>${item.pic}</strong></td>
+                    <td>${item.tujuan}</td>
+                    <td>${item.mobil}</td>
+                    <td>${item.box}</td>
+                    <td>${item.durasi}</td>
+                    <td><span class="badge ${badgeClass}">${item.status}</span></td>
+                    <td>${item.ket}</td>
+                    <td>${btnMulai}</td>
+                    <td>${btnSelesai}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
 
-        // Render Data Tabel
-        function renderTable(data) {
-            const tbody = document.getElementById('data-table');
-            tbody.innerHTML = '';
+    function renderStats(data) {
+        const total = data.length;
+        const achieve = data.filter(d => d.status.toLowerCase() === 'achieve').length;
+        const notAchieve = data.filter(d => d.status.toLowerCase() === 'not achieve').length;
+        const rate = total > 0 ? ((achieve / total) * 100).toFixed(1) : 0;
 
-            data.forEach(item => {
-                const badgeClass = item.status === 'Achieve' ? 'badge-achieve' : 'badge-not-achieve';
-                
-                const btnMulai = item.imgMulai && item.imgMulai.startsWith('http') 
-                    ? `<a href="${item.imgMulai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
-                    : `<span class="no-img">-</span>`;
+        document.getElementById('total-shipment').innerText = total;
+        document.getElementById('total-achieve').innerText = achieve;
+        document.getElementById('total-not-achieve').innerText = notAchieve;
+        document.getElementById('rate-achieve').innerText = `${rate}%`;
+    }
 
-                const btnSelesai = item.imgSelesai && item.imgSelesai.startsWith('http') 
-                    ? `<a href="${item.imgSelesai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
-                    : `<span class="no-img">-</span>`;
+    function renderCharts(data) {
+        const picMap = {};
+        data.forEach(d => {
+            if (!picMap[d.pic]) picMap[d.pic] = { achieve: 0, notAchieve: 0 };
+            if (d.status.toLowerCase() === 'achieve') picMap[d.pic].achieve++;
+            else if (d.status.toLowerCase() === 'not achieve') picMap[d.pic].notAchieve++;
+        });
 
-                const row = `
-                    <tr>
-                        <td>${item.tanggal}</td>
-                        <td><strong>${item.pic}</strong></td>
-                        <td>${item.tujuan}</td>
-                        <td>${item.mobil}</td>
-                        <td>${item.box}</td>
-                        <td>${item.durasi}</td>
-                        <td><span class="badge ${badgeClass}">${item.status}</span></td>
-                        <td>${item.ket}</td>
-                        <td>${btnMulai}</td>
-                        <td>${btnSelesai}</td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
-            });
-        }
+        const picLabels = Object.keys(picMap);
+        const achieveData = picLabels.map(p => picMap[p].achieve);
+        const notAchieveData = picLabels.map(p => picMap[p].notAchieve);
 
-        // Render Statistik Utama
-        function renderStats(data) {
-            const total = data.length;
-            const achieve = data.filter(d => d.status === 'Achieve').length;
-            const notAchieve = data.filter(d => d.status === 'Not Achieve').length;
-            const rate = total > 0 ? ((achieve / total) * 100).toFixed(1) : 0;
+        if (picChartInstance) picChartInstance.destroy();
+        const ctx1 = document.getElementById('picChart').getContext('2d');
+        picChartInstance = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: picLabels,
+                datasets: [
+                    { label: 'Achieve', data: achieveData, backgroundColor: '#22c55e' },
+                    { label: 'Not Achieve', data: notAchieveData, backgroundColor: '#ef4444' }
+                ]
+            },
+            options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true } } }
+        });
 
-            document.getElementById('total-shipment').innerText = total;
-            document.getElementById('total-achieve').innerText = achieve;
-            document.getElementById('total-not-achieve').innerText = notAchieve;
-            document.getElementById('rate-achieve').innerText = `${rate}%`;
-        }
+        const tujuanMap = {};
+        data.forEach(d => {
+            tujuanMap[d.tujuan] = (tujuanMap[d.tujuan] || 0) + 1;
+        });
 
-        // Render Grafik Bar & Doughnut
-        function renderCharts(data) {
-            const picMap = {};
-            data.forEach(d => {
-                if (!picMap[d.pic]) picMap[d.pic] = { achieve: 0, notAchieve: 0 };
-                if (d.status === 'Achieve') picMap[d.pic].achieve++;
-                else if (d.status === 'Not Achieve') picMap[d.pic].notAchieve++;
-            });
+        if (tujuanChartInstance) tujuanChartInstance.destroy();
+        const ctx2 = document.getElementById('tujuanChart').getContext('2d');
+        tujuanChartInstance = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(tujuanMap),
+                datasets: [{
+                    data: Object.values(tujuanMap),
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316']
+                }]
+            },
+            options: { responsive: true }
+        });
+    }
 
-            const picLabels = Object.keys(picMap);
-            const achieveData = picLabels.map(p => picMap[p].achieve);
-            const notAchieveData = picLabels.map(p => picMap[p].notAchieve);
+    // Inisialisasi Pertama
+    fetchMasterData();
 
-            if (picChartInstance) picChartInstance.destroy();
-            const ctx1 = document.getElementById('picChart').getContext('2d');
-            picChartInstance = new Chart(ctx1, {
-                type: 'bar',
-                data: {
-                    labels: picLabels,
-                    datasets: [
-                        { label: 'Achieve', data: achieveData, backgroundColor: '#22c55e' },
-                        { label: 'Not Achieve', data: notAchieveData, backgroundColor: '#ef4444' }
-                    ]
-                },
-                options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true } } }
-            });
-
-            const tujuanMap = {};
-            data.forEach(d => {
-                tujuanMap[d.tujuan] = (tujuanMap[d.tujuan] || 0) + 1;
-            });
-
-            if (tujuanChartInstance) tujuanChartInstance.destroy();
-            const ctx2 = document.getElementById('tujuanChart').getContext('2d');
-            tujuanChartInstance = new Chart(ctx2, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(tujuanMap),
-                    datasets: [{
-                        data: Object.values(tujuanMap),
-                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#f97316']
-                    }]
-                },
-                options: { responsive: true }
-            });
-        }
-
-        // Inisialisasi Pertama
-        fetchMasterData();
-
-        // Auto Refresh Setiap 15 Detik
-        setInterval(fetchMasterData, 15000); 
-    </script>
-</body>
-</html>
+    // Auto Refresh Setiap 15 Detik
+    setInterval(fetchMasterData, 15000); 
+</script>
