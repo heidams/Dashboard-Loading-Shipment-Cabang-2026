@@ -49,8 +49,8 @@
         .badge-achieve { background-color: #dcfce7; color: #15803d; }
         .badge-not-achieve { background-color: #fee2e2; color: #b91c1c; }
         
-        .btn-img { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; background-color: #eff6ff; color: #2563eb; text-decoration: none; font-size: 11px; font-weight: 600; border: 1px solid #bfdbfe; }
-        .btn-img:hover { background-color: #dbeafe; }
+        .btn-img { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 6px; background-color: #eff6ff; color: #2563eb; text-decoration: none; font-size: 11px; font-weight: 600; border: 1px solid #bfdbfe; transition: all 0.2s; }
+        .btn-img:hover { background-color: #2563eb; color: #ffffff; }
         .no-img { color: #94a3b8; font-style: italic; font-size: 12px; }
     </style>
 </head>
@@ -162,10 +162,11 @@
             "Juli", "Agustus", "September", "Oktober", "November", "Desember"
         ];
 
+        // Fungsi fleksibel untuk mencocokkan berbagai jenis kata kunci header
         function getFlexibleValue(row, keywords) {
             const keys = Object.keys(row);
             for (let kw of keywords) {
-                const matchedKey = keys.find(k => k.trim().toLowerCase().includes(kw.toLowerCase()));
+                const matchedKey = keys.find(k => k.trim().toLowerCase() === kw.toLowerCase() || k.trim().toLowerCase().includes(kw.toLowerCase()));
                 if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
                     return row[matchedKey].toString().trim();
                 }
@@ -235,8 +236,9 @@
                         const status = getFlexibleValue(row, ["target", "status", "achieve"]) || "Pending";
                         const ket = getFlexibleValue(row, ["keterangan", "ket", "note", "catatan"]) || "-";
                         
-                        const imgMulai = getFlexibleValue(row, ["mulai", "start", "gambar 1", "foto 1"]);
-                        const imgSelesai = getFlexibleValue(row, ["selesai", "finish", "gambar 2", "foto 2"]);
+                        // Ekstraksi Khusus Link Gambar Google Drive
+                        const imgMulai = getFlexibleValue(row, ["gambar mulai", "foto mulai", "mulai"]);
+                        const imgSelesai = getFlexibleValue(row, ["gambar selesai", "foto selesai", "selesai"]);
 
                         return { tanggal, bulan, pic, tujuan, mobil, box, durasi, status, ket, imgMulai, imgSelesai };
                     })
@@ -304,6 +306,10 @@
             renderCharts(filteredData);
         }
 
+        function isValidUrl(str) {
+            return str && (str.startsWith('http://') || str.startsWith('https://'));
+        }
+
         function renderTable(data) {
             const tbody = document.getElementById('data-table');
             tbody.innerHTML = '';
@@ -317,11 +323,11 @@
                 const isAchieve = item.status.toLowerCase().includes('achieve') && !item.status.toLowerCase().includes('not');
                 const badgeClass = isAchieve ? 'badge-achieve' : 'badge-not-achieve';
                 
-                const btnMulai = item.imgMulai && (item.imgMulai.startsWith('http') || item.imgMulai.startsWith('https'))
+                const btnMulai = isValidUrl(item.imgMulai)
                     ? `<a href="${item.imgMulai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
                     : `<span class="no-img">-</span>`;
 
-                const btnSelesai = item.imgSelesai && (item.imgSelesai.startsWith('http') || item.imgSelesai.startsWith('https'))
+                const btnSelesai = isValidUrl(item.imgSelesai)
                     ? `<a href="${item.imgSelesai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
                     : `<span class="no-img">-</span>`;
 
