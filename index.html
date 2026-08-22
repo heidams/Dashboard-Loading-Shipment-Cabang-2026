@@ -145,14 +145,15 @@
     </div>
 
     <script>
-        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=1227275087&single=true&output=csv";
+        // URL Google Sheets baru milik Anda
+        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
         const CORS_PROXY = "https://api.allorigins.win/raw?url=";
 
         let allData = [];
         let picChartInstance = null;
         let tujuanChartInstance = null;
 
-        // Pencarian nilai sel secara fleksibel berdasarkan kemiripan kata kunci
+        // Function pencarian nilai sel secara fleksibel
         function getFlexibleValue(row, keywords) {
             const keys = Object.keys(row);
             for (let kw of keywords) {
@@ -196,9 +197,7 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    console.log("Raw CSV Parsed:", results.data); // Cek console browser F12 untuk Debug
-
-                    allData = results.data.map((row, index) => {
+                    allData = results.data.map((row) => {
                         const tanggal = getFlexibleValue(row, ["tanggal", "date", "tgl"]) || "-";
                         const pic = getFlexibleValue(row, ["pic", "nama pic", "nama"]) || "Tanpa PIC";
                         const tujuan = getFlexibleValue(row, ["tujuan", "cabang", "destination"]) || "Tanpa Tujuan";
@@ -208,7 +207,6 @@
                         const status = getFlexibleValue(row, ["target", "status", "achieve"]) || "Pending";
                         const ket = getFlexibleValue(row, ["keterangan", "ket", "note", "catatan"]) || "-";
                         
-                        // Gambar
                         const imgMulai = getFlexibleValue(row, ["mulai", "start", "gambar 1", "foto 1"]);
                         const imgSelesai = getFlexibleValue(row, ["selesai", "finish", "gambar 2", "foto 2"]);
 
@@ -216,10 +214,9 @@
                             tanggal, pic, tujuan, mobil, box, durasi, status, ket, imgMulai, imgSelesai
                         };
                     })
-                    // Memastikan baris kosong / header tidak valid terbuang
                     .filter(item => {
                         const valString = Object.values(item).join("").toLowerCase();
-                        return valString.length > 10 && !valString.includes("undefined");
+                        return valString.length > 5 && !valString.includes("undefined");
                     });
 
                     updateDropdowns();
