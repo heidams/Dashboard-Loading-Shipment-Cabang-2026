@@ -33,7 +33,7 @@
 
         /* Filter Section */
         .filter-container { background: #fff; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .filter-group { flex: 1; min-width: 160px; }
+        .filter-group { flex: 1; min-width: 140px; }
         .filter-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #475569; }
         .filter-group select { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 13px; background-color: #fff; }
 
@@ -100,6 +100,12 @@
     <!-- Filters -->
     <div class="filter-container">
         <div class="filter-group">
+            <label for="filter-bulan">Bulan</label>
+            <select id="filter-bulan" onchange="applyFilters()">
+                <option value="ALL">Semua Bulan</option>
+            </select>
+        </div>
+        <div class="filter-group">
             <label for="filter-pic">Nama PIC</label>
             <select id="filter-pic" onchange="applyFilters()">
                 <option value="ALL">Semua PIC</option>
@@ -151,6 +157,11 @@
         let picChartInstance = null;
         let tujuanChartInstance = null;
 
+        const namaBulan = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+
         function getFlexibleValue(row, keywords) {
             const keys = Object.keys(row);
             for (let kw of keywords) {
@@ -162,6 +173,19 @@
             return "";
         }
 
+        // Ekstraksi nama bulan dari format tanggal (DD/MM/YYYY)
+        function parseMonth(dateStr) {
+            if (!dateStr || dateStr === "-") return "Lainnya";
+            const parts = dateStr.split(/[\/\-\.]/);
+            if (parts.length >= 2) {
+                let monthNum = parseInt(parts[1], 10);
+                if (monthNum >= 1 && monthNum <= 12) {
+                    return namaBulan[monthNum - 1];
+                }
+            }
+            return "Lainnya";
+        }
+
         async function fetchMasterData() {
             const syncDot = document.getElementById('sync-dot');
             const syncText = document.getElementById('sync-text');
@@ -170,7 +194,6 @@
 
             const urlWithCacheBust = CSV_URL + "&_t=" + new Date().getTime();
             
-            // Mencoba beberapa proxy jika direct fetch terhalang
             const proxySources = [
                 urlWithCacheBust,
                 `https://api.allorigins.win/raw?url=${encodeURIComponent(urlWithCacheBust)}`,
@@ -204,6 +227,7 @@
                 complete: function(results) {
                     allData = results.data.map((row) => {
                         const tanggal = getFlexibleValue(row, ["tanggal", "date", "tgl"]) || "-";
+                        const bulan = parseMonth(tanggal);
                         const pic = getFlexibleValue(row, ["pic", "nama pic", "nama"]) || "Tanpa PIC";
                         const tujuan = getFlexibleValue(row, ["tujuan", "cabang", "destination"]) || "Tanpa Tujuan";
                         const mobil = getFlexibleValue(row, ["mobil", "kendaraan", "jenis"]) || "-";
@@ -215,7 +239,7 @@
                         const imgMulai = getFlexibleValue(row, ["mulai", "start", "gambar 1", "foto 1"]);
                         const imgSelesai = getFlexibleValue(row, ["selesai", "finish", "gambar 2", "foto 2"]);
 
-                        return { tanggal, pic, tujuan, mobil, box, durasi, status, ket, imgMulai, imgSelesai };
+                        return { tanggal, bulan, pic, tujuan, mobil, box, durasi, status, ket, imgMulai, imgSelesai };
                     })
                     .filter(item => {
                         const valString = Object.values(item).join("").toLowerCase();
@@ -234,18 +258,28 @@
         }
 
         function updateDropdowns() {
+            const currentBulan = document.getElementById('filter-bulan').value;
             const currentPic = document.getElementById('filter-pic').value;
             const currentTujuan = document.getElementById('filter-tujuan').value;
 
-            const picSet = new Set(allData.map(d => d.pic));
-            const tujuanSet = new Set(allData.map(d => d.tujuan));
+            // Sort bulan sesuai urutan kalender
+            const bulanSet = new Set(allData.map(d => d.bulan));
+            const sortedBulan = namaBulan.filter(b => bulanSet.has(b));
 
+            const bulanSelect = document.getElementById('filter-bulan');
+            bulanSelect.innerHTML = '<option value="ALL">Semua Bulan</option>';
+            sortedBulan.forEach(b => {
+                bulanSelect.innerHTML += `<option value="${b}" ${b === currentBulan ? 'selected' : ''}>${b}</option>`;
+            });
+
+            const picSet = new Set(allData.map(d => d.pic));
             const picSelect = document.getElementById('filter-pic');
             picSelect.innerHTML = '<option value="ALL">Semua PIC</option>';
             picSet.forEach(pic => {
                 if(pic && pic !== "Tanpa PIC") picSelect.innerHTML += `<option value="${pic}" ${pic === currentPic ? 'selected' : ''}>${pic}</option>`;
             });
 
+            const tujuanSet = new Set(allData.map(d => d.tujuan));
             const tujuanSelect = document.getElementById('filter-tujuan');
             tujuanSelect.innerHTML = '<option value="ALL">Semua Tujuan</option>';
             tujuanSet.forEach(tj => {
@@ -254,15 +288,17 @@
         }
 
         function applyFilters() {
+            const selectedBulan = document.getElementById('filter-bulan').value;
             const selectedPic = document.getElementById('filter-pic').value;
             const selectedTujuan = document.getElementById('filter-tujuan').value;
             const selectedStatus = document.getElementById('filter-status').value;
 
             const filteredData = allData.filter(item => {
+                const matchBulan = selectedBulan === 'ALL' || item.bulan === selectedBulan;
                 const matchPic = selectedPic === 'ALL' || item.pic === selectedPic;
                 const matchTujuan = selectedTujuan === 'ALL' || item.tujuan === selectedTujuan;
                 const matchStatus = selectedStatus === 'ALL' || item.status.toLowerCase().includes(selectedStatus.toLowerCase());
-                return matchPic && matchTujuan && matchStatus;
+                return matchBulan && matchPic && matchTujuan && matchStatus;
             });
 
             renderTable(filteredData);
