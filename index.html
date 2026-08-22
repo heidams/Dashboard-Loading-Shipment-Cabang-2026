@@ -145,24 +145,20 @@
     </div>
 
     <script>
-        // Tautan Menggunakan Google Visualization Query Engine (Bebas CORS Error)
-        const SPREADSHEET_ID = "2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef";
-        const GID = "1227275087";
-        const GOOGLE_SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/e/${SPREADSHEET_ID}/pub?gid=${GID}&single=true&output=csv`;
-        
-        // Proxy Fallback untuk mencegah blokir browser
+        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=1227275087&single=true&output=csv";
         const CORS_PROXY = "https://api.allorigins.win/raw?url=";
 
         let allData = [];
         let picChartInstance = null;
         let tujuanChartInstance = null;
 
-        function getRowValue(row, possibleKeys) {
+        // Pencarian nilai sel secara fleksibel berdasarkan kemiripan kata kunci
+        function getFlexibleValue(row, keywords) {
             const keys = Object.keys(row);
-            for (let pKey of possibleKeys) {
-                const foundKey = keys.find(k => k.trim().toLowerCase() === pKey.toLowerCase());
-                if (foundKey && row[foundKey]) {
-                    return row[foundKey].toString().trim();
+            for (let kw of keywords) {
+                const matchedKey = keys.find(k => k.trim().toLowerCase().includes(kw.toLowerCase()));
+                if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
+                    return row[matchedKey].toString().trim();
                 }
             }
             return "";
@@ -174,19 +170,15 @@
             syncDot.classList.add('syncing');
             syncText.innerText = "Memperbarui Data...";
 
-            // Menambahkan cache buster
             const directUrl = GOOGLE_SHEET_CSV_URL + '&t=' + new Date().getTime();
-            
             let csvText = "";
 
             try {
-                // Percobaan 1: Mengambil Data Langsung
                 const response = await fetch(directUrl);
                 if (!response.ok) throw new Error("Direct fetch failed");
                 csvText = await response.text();
             } catch (err) {
                 try {
-                    // Percobaan 2: Menggunakan Proxy jika direct fetch diblokir oleh CORS
                     const proxyUrl = CORS_PROXY + encodeURIComponent(directUrl);
                     const proxyResponse = await fetch(proxyUrl);
                     if (!proxyResponse.ok) throw new Error("Proxy fetch failed");
@@ -200,30 +192,35 @@
                 }
             }
 
-            // Parsing Data CSV
             Papa.parse(csvText, {
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    allData = results.data.map(row => {
-                        const pic = getRowValue(row, ["Nama PIC", "PIC"]);
-                        const status = getRowValue(row, ["Target", "Status Target", "Status"]);
-                        const tujuan = getRowValue(row, ["Tujuan Pengiriman", "Tujuan"]);
+                    console.log("Raw CSV Parsed:", results.data); // Cek console browser F12 untuk Debug
+
+                    allData = results.data.map((row, index) => {
+                        const tanggal = getFlexibleValue(row, ["tanggal", "date", "tgl"]) || "-";
+                        const pic = getFlexibleValue(row, ["pic", "nama pic", "nama"]) || "Tanpa PIC";
+                        const tujuan = getFlexibleValue(row, ["tujuan", "cabang", "destination"]) || "Tanpa Tujuan";
+                        const mobil = getFlexibleValue(row, ["mobil", "kendaraan", "jenis"]) || "-";
+                        const box = getFlexibleValue(row, ["box", "jumlah", "qty"]) || "0";
+                        const durasi = getFlexibleValue(row, ["durasi", "waktu", "lama"]) || "-";
+                        const status = getFlexibleValue(row, ["target", "status", "achieve"]) || "Pending";
+                        const ket = getFlexibleValue(row, ["keterangan", "ket", "note", "catatan"]) || "-";
                         
+                        // Gambar
+                        const imgMulai = getFlexibleValue(row, ["mulai", "start", "gambar 1", "foto 1"]);
+                        const imgSelesai = getFlexibleValue(row, ["selesai", "finish", "gambar 2", "foto 2"]);
+
                         return {
-                            tanggal: getRowValue(row, ["Tanggal"]) || "-",
-                            pic: pic || "Tanpa PIC",
-                            tujuan: tujuan || "Tanpa Tujuan",
-                            mobil: getRowValue(row, ["Jenis Mobil", "Mobil"]) || "-",
-                            box: getRowValue(row, ["Jumlah Box", "Box"]) || "0",
-                            durasi: getRowValue(row, ["Durasi Loading", "Durasi"]) || "-",
-                            status: status || "Pending",
-                            ket: getRowValue(row, ["Keterangan"]) || "-",
-                            imgMulai: getRowValue(row, ["Keterangan Gambar Mulai", "Gambar Mulai"]),
-                            imgSelesai: getRowValue(row, ["Keterangan Gambar Selesai", "Gambar Selesai"])
+                            tanggal, pic, tujuan, mobil, box, durasi, status, ket, imgMulai, imgSelesai
                         };
                     })
-                    .filter(item => item.tanggal !== "-" || item.pic !== "Tanpa PIC");
+                    // Memastikan baris kosong / header tidak valid terbuang
+                    .filter(item => {
+                        const valString = Object.values(item).join("").toLowerCase();
+                        return valString.length > 10 && !valString.includes("undefined");
+                    });
 
                     updateDropdowns();
                     applyFilters();
@@ -246,13 +243,13 @@
             const picSelect = document.getElementById('filter-pic');
             picSelect.innerHTML = '<option value="ALL">Semua PIC</option>';
             picSet.forEach(pic => {
-                picSelect.innerHTML += `<option value="${pic}" ${pic === currentPic ? 'selected' : ''}>${pic}</option>`;
+                if(pic && pic !== "Tanpa PIC") picSelect.innerHTML += `<option value="${pic}" ${pic === currentPic ? 'selected' : ''}>${pic}</option>`;
             });
 
             const tujuanSelect = document.getElementById('filter-tujuan');
             tujuanSelect.innerHTML = '<option value="ALL">Semua Tujuan</option>';
             tujuanSet.forEach(tj => {
-                tujuanSelect.innerHTML += `<option value="${tj}" ${tj === currentTujuan ? 'selected' : ''}>${tj}</option>`;
+                if(tj && tj !== "Tanpa Tujuan") tujuanSelect.innerHTML += `<option value="${tj}" ${tj === currentTujuan ? 'selected' : ''}>${tj}</option>`;
             });
         }
 
@@ -264,7 +261,7 @@
             const filteredData = allData.filter(item => {
                 const matchPic = selectedPic === 'ALL' || item.pic === selectedPic;
                 const matchTujuan = selectedTujuan === 'ALL' || item.tujuan === selectedTujuan;
-                const matchStatus = selectedStatus === 'ALL' || item.status.toLowerCase() === selectedStatus.toLowerCase();
+                const matchStatus = selectedStatus === 'ALL' || item.status.toLowerCase().includes(selectedStatus.toLowerCase());
                 return matchPic && matchTujuan && matchStatus;
             });
 
@@ -278,19 +275,19 @@
             tbody.innerHTML = '';
 
             if(data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 20px;">Tidak ada data yang cocok / data kosong.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 20px;">Data tidak ditemukan / belum terisi.</td></tr>`;
                 return;
             }
 
             data.forEach(item => {
-                const isAchieve = item.status.toLowerCase() === 'achieve';
+                const isAchieve = item.status.toLowerCase().includes('achieve') && !item.status.toLowerCase().includes('not');
                 const badgeClass = isAchieve ? 'badge-achieve' : 'badge-not-achieve';
                 
-                const btnMulai = item.imgMulai && item.imgMulai.startsWith('http') 
+                const btnMulai = item.imgMulai && (item.imgMulai.startsWith('http') || item.imgMulai.startsWith('https'))
                     ? `<a href="${item.imgMulai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
                     : `<span class="no-img">-</span>`;
 
-                const btnSelesai = item.imgSelesai && item.imgSelesai.startsWith('http') 
+                const btnSelesai = item.imgSelesai && (item.imgSelesai.startsWith('http') || item.imgSelesai.startsWith('https'))
                     ? `<a href="${item.imgSelesai}" target="_blank" class="btn-img">🖼️ Lihat Gambar</a>` 
                     : `<span class="no-img">-</span>`;
 
@@ -314,8 +311,8 @@
 
         function renderStats(data) {
             const total = data.length;
-            const achieve = data.filter(d => d.status.toLowerCase() === 'achieve').length;
-            const notAchieve = data.filter(d => d.status.toLowerCase() === 'not achieve').length;
+            const achieve = data.filter(d => d.status.toLowerCase().includes('achieve') && !d.status.toLowerCase().includes('not')).length;
+            const notAchieve = total - achieve;
             const rate = total > 0 ? ((achieve / total) * 100).toFixed(1) : 0;
 
             document.getElementById('total-shipment').innerText = total;
@@ -328,8 +325,9 @@
             const picMap = {};
             data.forEach(d => {
                 if (!picMap[d.pic]) picMap[d.pic] = { achieve: 0, notAchieve: 0 };
-                if (d.status.toLowerCase() === 'achieve') picMap[d.pic].achieve++;
-                else if (d.status.toLowerCase() === 'not achieve') picMap[d.pic].notAchieve++;
+                const isAchieve = d.status.toLowerCase().includes('achieve') && !d.status.toLowerCase().includes('not');
+                if (isAchieve) picMap[d.pic].achieve++;
+                else picMap[d.pic].notAchieve++;
             });
 
             const picLabels = Object.keys(picMap);
