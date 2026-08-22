@@ -145,8 +145,7 @@
     </div>
 
     <script>
-        const SHEET_ID = "2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef";
-        const GID = "498101163";
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
 
         let allData = [];
         let picChartInstance = null;
@@ -163,78 +162,76 @@
             return "";
         }
 
-        function fetchMasterData() {
+        async function fetchMasterData() {
             const syncDot = document.getElementById('sync-dot');
             const syncText = document.getElementById('sync-text');
             syncDot.classList.add('syncing');
             syncText.innerText = "Memperbarui Data...";
 
-            // Memakai Google Visualization API JSONP - Bebas Hambatan CORS
-            const jsonpUrl = `https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:handleGvizResponse&gid=${GID}&_=${new Date().getTime()}`;
+            const urlWithCacheBust = CSV_URL + "&_t=" + new Date().getTime();
+            
+            // Mencoba beberapa proxy jika direct fetch terhalang
+            const proxySources = [
+                urlWithCacheBust,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(urlWithCacheBust)}`,
+                `https://corsproxy.io/?${encodeURIComponent(urlWithCacheBust)}`
+            ];
 
-            const oldScript = document.getElementById('gviz-script');
-            if (oldScript) oldScript.remove();
+            let csvText = null;
 
-            const script = document.createElement('script');
-            script.id = 'gviz-script';
-            script.src = jsonpUrl;
-            script.onerror = function() {
+            for (let sourceUrl of proxySources) {
+                try {
+                    const response = await fetch(sourceUrl);
+                    if (response.ok) {
+                        csvText = await response.text();
+                        if (csvText && csvText.length > 20) break;
+                    }
+                } catch (e) {
+                    console.warn("Mencoba sumber cadangan berikutnya...");
+                }
+            }
+
+            if (!csvText) {
                 syncText.innerText = "Gagal Sinkronisasi";
                 syncDot.classList.remove('syncing');
                 syncDot.style.backgroundColor = "#ef4444";
-            };
-            document.body.appendChild(script);
-        }
+                return;
+            }
 
-        // Callback Otomatis dari Google Sheets API
-        window.handleGvizResponse = function(response) {
-            const syncDot = document.getElementById('sync-dot');
-            const syncText = document.getElementById('sync-text');
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    allData = results.data.map((row) => {
+                        const tanggal = getFlexibleValue(row, ["tanggal", "date", "tgl"]) || "-";
+                        const pic = getFlexibleValue(row, ["pic", "nama pic", "nama"]) || "Tanpa PIC";
+                        const tujuan = getFlexibleValue(row, ["tujuan", "cabang", "destination"]) || "Tanpa Tujuan";
+                        const mobil = getFlexibleValue(row, ["mobil", "kendaraan", "jenis"]) || "-";
+                        const box = getFlexibleValue(row, ["box", "jumlah", "qty"]) || "0";
+                        const durasi = getFlexibleValue(row, ["durasi", "waktu", "lama"]) || "-";
+                        const status = getFlexibleValue(row, ["target", "status", "achieve"]) || "Pending";
+                        const ket = getFlexibleValue(row, ["keterangan", "ket", "note", "catatan"]) || "-";
+                        
+                        const imgMulai = getFlexibleValue(row, ["mulai", "start", "gambar 1", "foto 1"]);
+                        const imgSelesai = getFlexibleValue(row, ["selesai", "finish", "gambar 2", "foto 2"]);
 
-            try {
-                const table = response.table;
-                const cols = table.cols.map(c => c ? (c.label || c.id) : "");
-                
-                allData = table.rows.map(r => {
-                    let rowObj = {};
-                    r.c.forEach((cell, idx) => {
-                        const colName = cols[idx] || `col_${idx}`;
-                        rowObj[colName] = cell ? (cell.f || cell.v || "") : "";
+                        return { tanggal, pic, tujuan, mobil, box, durasi, status, ket, imgMulai, imgSelesai };
+                    })
+                    .filter(item => {
+                        const valString = Object.values(item).join("").toLowerCase();
+                        return valString.length > 5 && !valString.includes("undefined");
                     });
 
-                    const tanggal = getFlexibleValue(rowObj, ["tanggal", "date", "tgl"]) || "-";
-                    const pic = getFlexibleValue(rowObj, ["pic", "nama pic", "nama"]) || "Tanpa PIC";
-                    const tujuan = getFlexibleValue(rowObj, ["tujuan", "cabang", "destination"]) || "Tanpa Tujuan";
-                    const mobil = getFlexibleValue(rowObj, ["mobil", "kendaraan", "jenis"]) || "-";
-                    const box = getFlexibleValue(rowObj, ["box", "jumlah", "qty"]) || "0";
-                    const durasi = getFlexibleValue(rowObj, ["durasi", "waktu", "lama"]) || "-";
-                    const status = getFlexibleValue(rowObj, ["target", "status", "achieve"]) || "Pending";
-                    const ket = getFlexibleValue(rowObj, ["keterangan", "ket", "note", "catatan"]) || "-";
-                    
-                    const imgMulai = getFlexibleValue(rowObj, ["mulai", "start", "gambar 1", "foto 1"]);
-                    const imgSelesai = getFlexibleValue(rowObj, ["selesai", "finish", "gambar 2", "foto 2"]);
+                    updateDropdowns();
+                    applyFilters();
 
-                    return { tanggal, pic, tujuan, mobil, box, durasi, status, ket, imgMulai, imgSelesai };
-                })
-                .filter(item => {
-                    const valString = Object.values(item).join("").toLowerCase();
-                    return valString.length > 5 && !valString.includes("undefined");
-                });
-
-                updateDropdowns();
-                applyFilters();
-
-                syncDot.classList.remove('syncing');
-                syncDot.style.backgroundColor = "#22c55e";
-                syncText.innerText = "Terhubung & Terupdate";
-                document.getElementById('last-update').innerText = `(${new Date().toLocaleTimeString()})`;
-            } catch (e) {
-                console.error("Error Parsing GViz Data:", e);
-                syncText.innerText = "Gagal Sinkronisasi";
-                syncDot.classList.remove('syncing');
-                syncDot.style.backgroundColor = "#ef4444";
-            }
-        };
+                    syncDot.classList.remove('syncing');
+                    syncDot.style.backgroundColor = "#22c55e";
+                    syncText.innerText = "Terhubung & Terupdate";
+                    document.getElementById('last-update').innerText = `(${new Date().toLocaleTimeString()})`;
+                }
+            });
+        }
 
         function updateDropdowns() {
             const currentPic = document.getElementById('filter-pic').value;
