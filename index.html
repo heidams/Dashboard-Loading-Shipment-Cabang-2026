@@ -61,7 +61,14 @@
         .form-group label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 5px; }
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fff; }
         .form-group textarea { resize: vertical; min-height: 70px; }
-        .timer-box { background: #f8fafc; text-align: center; padding: 15px; border-radius: 8px; font-size: 24px; font-weight: 700; color: var(--primary-color); margin-bottom: 15px; border: 1px solid #e2e8f0; }
+        .form-group textarea.required-error { border: 2px solid var(--danger-color); background-color: #fef2f2; }
+        
+        .timer-box { background: #f8fafc; text-align: center; padding: 15px; border-radius: 8px; font-size: 26px; font-weight: 700; color: var(--primary-color); margin-bottom: 10px; border: 1px solid #e2e8f0; }
+        .target-info { font-size: 12px; font-weight: 600; color: var(--text-muted); text-align: center; margin-bottom: 15px; }
+        .status-alert { font-weight: 700; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+        .status-alert.achieve { background: #dcfce7; color: #15803d; }
+        .status-alert.over { background: #fee2e2; color: #b91c1c; }
+
         .btn-action { width: 100%; padding: 12px; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-bottom: 10px; }
         .btn-start { background: var(--success-color); color: white; }
         .btn-stop { background: var(--primary-color); color: white; }
@@ -141,20 +148,21 @@
 
                 <div class="form-group">
                     <label>Jumlah Box</label>
-                    <input type="number" id="jumlahBox" placeholder="0" required>
+                    <input type="number" id="jumlahBox" placeholder="0" oninput="updateTargetTime()" required>
                 </div>
+
                 <div class="form-group">
                     <label>Jumlah PIC</label>
                     <input type="number" id="jumlahPIC" value="0" required>
                 </div>
 
-                <!-- INPUT KETERANGAN KENDALA -->
+                <!-- KETERANGAN KENDALA -->
                 <div class="form-group">
-                    <label>Keterangan / Catatan Kendala</label>
-                    <textarea id="keterangan" placeholder="Tuliskan kendala jika ada (Opsional)..."></textarea>
+                    <label id="lblKeterangan">Keterangan / Catatan Kendala <span id="reqBadge" style="color:red; display:none;">(Wajib diisi jika lewat target)</span></label>
+                    <textarea id="keterangan" placeholder="Tuliskan kendala jika ada..."></textarea>
                 </div>
 
-                <!-- UPLOAD GAMBAR MULAI & SELESAI -->
+                <!-- UPLOAD GAMBAR -->
                 <div class="form-group">
                     <label>Upload Gambar Mulai Loading</label>
                     <input type="file" id="gambarMulai" accept="image/*">
@@ -164,7 +172,12 @@
                     <input type="file" id="gambarSelesai" accept="image/*">
                 </div>
 
+                <!-- TIMER & TARGET INFO -->
                 <div class="timer-box" id="timerDisplay">00:00:00</div>
+                <div class="target-info">
+                    Target Maksimal: <span id="targetDisplay" style="font-weight:700;">-</span> | 
+                    Status: <span id="statusDisplay" class="status-alert achieve">Achieve</span>
+                </div>
 
                 <button type="button" class="btn-action btn-start" onclick="startLoading()">Mulai Loading</button>
                 <button type="button" class="btn-action btn-stop" onclick="stopAndSubmit()">Selesai & Simpan</button>
@@ -243,8 +256,8 @@
                             <th>Jumlah Box</th>
                             <th>Jumlah PIC</th>
                             <th>Durasi Loading</th>
-                            <th>Target</th>
-                            <th>Keterangan</th>
+                            <th>Target Status</th>
+                            <th>Keterangan Kendala</th>
                             <th>Gambar Mulai</th>
                             <th>Gambar Selesai</th>
                         </tr>
@@ -267,12 +280,146 @@
     let destChartInstance = null;
     let startTime = null;
     let timerInterval = null;
+    let targetSeconds = 0;
+    let currentStatus = "Achieve";
 
     function switchTab(tabName) {
         document.getElementById('pageInput').style.display = tabName === 'input' ? 'block' : 'none';
         document.getElementById('pageDashboard').style.display = tabName === 'dashboard' ? 'block' : 'none';
         document.getElementById('btnTabInput').classList.toggle('active', tabName === 'input');
         document.getElementById('btnTabDashboard').classList.toggle('active', tabName === 'dashboard');
+    }
+
+    // UPDATE TARGET WAKTU BERDASARKAN DATABASE JUMLAH BOX
+    function updateTargetTime() {
+        const box = parseInt(document.getElementById('jumlahBox').value) || 0;
+        let targetText = "-";
+        
+        if (box >= 1 && box <= 100) { targetSeconds = 25 * 60; targetText = "00:25:00"; }
+        else if (box >= 101 && box <= 150) { targetSeconds = 35 * 60; targetText = "00:35:00"; }
+        else if (box >= 151 && box <= 200) { targetSeconds = 50 * 60; targetText = "00:50:00"; }
+        else if (box >= 201 && box <= 300) { targetSeconds = 80 * 60; targetText = "01:20:00"; }
+        else if (box > 300) { targetSeconds = 120 * 60; targetText = "02:00:00"; }
+        else { targetSeconds = 0; targetText = "-"; }
+
+        document.getElementById('targetDisplay').innerText = targetText;
+    }
+
+    function startLoading() {
+        const box = parseInt(document.getElementById('jumlahBox').value);
+        if (!box || box <= 0) {
+            alert('Mohon isi Jumlah Box terlebih dahulu!');
+            return;
+        }
+
+        startTime = new Date();
+        if (timerInterval) clearInterval(timerInterval);
+
+        timerInterval = setInterval(() => {
+            const now = new Date();
+            const diffSeconds = Math.floor((now - startTime) / 1000);
+
+            const hrs = Math.floor(diffSeconds / 3600).toString().padStart(2, '0');
+            const mins = Math.floor((diffSeconds % 3600) / 60).toString().padStart(2, '0');
+            const secs = (diffSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${hrs}:${mins}:${secs}`;
+
+            // Evaluasi Target vs Real-time
+            const statusDisp = document.getElementById('statusDisplay');
+            const reqBadge = document.getElementById('reqBadge');
+            const ketInput = document.getElementById('keterangan');
+
+            if (targetSeconds > 0 && diffSeconds > targetSeconds) {
+                currentStatus = "Not Achieve";
+                statusDisp.innerText = "Not Achieve (Lewat Target)";
+                statusDisp.className = "status-alert over";
+                reqBadge.style.display = "inline";
+                ketInput.classList.add('required-error');
+            } else {
+                currentStatus = "Achieve";
+                statusDisp.innerText = "Achieve";
+                statusDisp.className = "status-alert achieve";
+                reqBadge.style.display = "none";
+                ketInput.classList.remove('required-error');
+            }
+        }, 1000);
+
+        alert('Timer loading dimulai!');
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            if (!file) resolve('');
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function stopAndSubmit() {
+        if (!startTime) { alert('Klik "Mulai Loading" dulu!'); return; }
+
+        const keteranganVal = document.getElementById('keterangan').value.trim();
+
+        // VALIDASI: Wajib isi keterangan jika Not Achieve
+        if (currentStatus === "Not Achieve" && keteranganVal === "") {
+            alert('Waktu loading melebihi target! Anda WAJIB mengisi Keterangan / Catatan Kendala.');
+            document.getElementById('keterangan').focus();
+            return;
+        }
+
+        clearInterval(timerInterval);
+
+        const now = new Date();
+        const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+        const picVal = document.getElementById('pic').value;
+        const tujuanVal = document.getElementById('tujuan').value;
+        const mobilVal = document.getElementById('jenisMobil').value;
+
+        if (!picVal || !tujuanVal || !mobilVal) {
+            alert('Mohon lengkapi pilihan PIC, Tujuan, dan Jenis Mobil!');
+            return;
+        }
+
+        const fileMulai = document.getElementById('gambarMulai').files[0];
+        const fileSelesai = document.getElementById('gambarSelesai').files[0];
+
+        const base64Mulai = await fileToBase64(fileMulai);
+        const base64Selesai = await fileToBase64(fileSelesai);
+
+        const payload = {
+            bulan: namaBulan[now.getMonth()],
+            tanggal: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
+            pic: picVal,
+            tujuan: tujuanVal,
+            jenisMobil: mobilVal,
+            mulai: `${startTime.getHours().toString().padStart(2,'0')}:${startTime.getMinutes().toString().padStart(2,'0')}`,
+            selesai: `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`,
+            jumlahBox: document.getElementById('jumlahBox').value,
+            jumlahPIC: document.getElementById('jumlahPIC').value,
+            durasi: document.getElementById('timerDisplay').innerText,
+            target: currentStatus,
+            keterangan: keteranganVal,
+            gambarMulai: base64Mulai,
+            gambarSelesai: base64Selesai
+        };
+
+        if (WEB_APP_URL !== "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT") {
+            try {
+                await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                alert('Data berhasil disimpan ke Spreadsheet!');
+            } catch (e) { console.error(e); }
+        } else {
+            alert(`Data tersimpan. Status: ${currentStatus}`);
+        }
+
+        document.getElementById('shipmentForm').reset();
+        document.getElementById('keterangan').classList.remove('required-error');
+        document.getElementById('reqBadge').style.display = 'none';
+        
+        setTimeout(async () => { await loadSpreadsheetData(); switchTab('dashboard'); }, 1500);
     }
 
     async function loadSpreadsheetData() {
@@ -463,82 +610,6 @@
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
         });
-    }
-
-    function startLoading() {
-        startTime = new Date();
-        if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-            const diff = new Date() - startTime;
-            const hrs = Math.floor(diff / 3600000).toString().padStart(2, '0');
-            const mins = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-            const secs = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-            document.getElementById('timerDisplay').innerText = `${hrs}:${mins}:${secs}`;
-        }, 1000);
-        alert('Timer dimulai!');
-    }
-
-    // KONVERSI FILE KE BASE64
-    function fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            if (!file) resolve('');
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    async function stopAndSubmit() {
-        if (!startTime) { alert('Klik "Mulai Loading" dulu!'); return; }
-        clearInterval(timerInterval);
-
-        const now = new Date();
-        const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-
-        const picVal = document.getElementById('pic').value;
-        const tujuanVal = document.getElementById('tujuan').value;
-        const mobilVal = document.getElementById('jenisMobil').value;
-
-        if (!picVal || !tujuanVal || !mobilVal) {
-            alert('Mohon lengkapi pilihan PIC, Tujuan, dan Jenis Mobil!');
-            return;
-        }
-
-        const fileMulai = document.getElementById('gambarMulai').files[0];
-        const fileSelesai = document.getElementById('gambarSelesai').files[0];
-
-        const base64Mulai = await fileToBase64(fileMulai);
-        const base64Selesai = await fileToBase64(fileSelesai);
-
-        const payload = {
-            bulan: namaBulan[now.getMonth()],
-            tanggal: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
-            pic: picVal,
-            tujuan: tujuanVal,
-            jenisMobil: mobilVal,
-            mulai: `${startTime.getHours().toString().padStart(2,'0')}:${startTime.getMinutes().toString().padStart(2,'0')}`,
-            selesai: `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`,
-            jumlahBox: document.getElementById('jumlahBox').value,
-            jumlahPIC: document.getElementById('jumlahPIC').value,
-            durasi: document.getElementById('timerDisplay').innerText,
-            target: '', // Kosongkan/otomatis di spreadsheet
-            keterangan: document.getElementById('keterangan').value,
-            gambarMulai: base64Mulai,
-            gambarSelesai: base64Selesai
-        };
-
-        if (WEB_APP_URL !== "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT") {
-            try {
-                await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                alert('Data berhasil disimpan ke Spreadsheet!');
-            } catch (e) { console.error(e); }
-        } else {
-            alert('Data selesai diproses.');
-        }
-
-        document.getElementById('shipmentForm').reset();
-        setTimeout(async () => { await loadSpreadsheetData(); switchTab('dashboard'); }, 1500);
     }
 
     window.onload = loadSpreadsheetData;
