@@ -39,6 +39,8 @@
         .filter-group select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; color: var(--text-dark); outline: none; background: #fff; }
         .btn-reset { padding: 9px 16px; background: #f1f5f9; color: var(--text-muted); border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; align-self: flex-end; }
         .btn-reset:hover { background: #e2e8f0; }
+        .btn-backup { padding: 9px 16px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; align-self: flex-end; display: flex; align-items: center; gap: 6px; transition: background 0.2s; }
+        .btn-backup:hover { background: #059669; }
 
         /* KPI CARDS */
         .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
@@ -197,7 +199,7 @@
             </div>
         </div>
 
-        <!-- FILTER ANALISIS DATA -->
+        <!-- FILTER & BACKUP DATA SECTION -->
         <div class="filter-card">
             <div class="filter-group">
                 <label>Filter Bulan</label>
@@ -220,6 +222,8 @@
                 </select>
             </div>
             <button class="btn-reset" onclick="resetFilters()">Reset Filter</button>
+            <!-- TOMBOL FITUR PENARIKAN DATA / BACKUP -->
+            <button class="btn-backup" onclick="backupDataCSV()">📥 Download Backup CSV</button>
         </div>
 
         <!-- KPI METRICS -->
@@ -278,6 +282,7 @@
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
 
     let rawDataList = [];
+    let rawCsvLines = []; // Menyimpan baris mentah CSV untuk keperluan backup
     let picChartInstance = null;
     let destChartInstance = null;
     let startTime = null;
@@ -351,37 +356,6 @@
         alert('Timer loading dimulai!');
     }
 
-    function fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            if (!file) resolve('');
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 600;
-                    const scaleFactor = MAX_WIDTH / img.width;
-                    
-                    if (scaleFactor < 1) {
-                        canvas.width = MAX_WIDTH;
-                        canvas.height = img.height * scaleFactor;
-                    } else {
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                    }
-
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.6));
-                };
-                img.onerror = error => reject(error);
-            };
-            reader.onerror = error => reject(error);
-        });
-    }
-
     async function stopAndSubmit() {
         if (!startTime) { alert('Klik "Mulai Loading" dulu!'); return; }
 
@@ -416,9 +390,12 @@
     async function loadSpreadsheetData() {
         let fetchedCSVData = [];
         try {
-            // Mencegah cache browser agar data selalu diambil segar langsung dari Google Sheets
             const response = await fetch(CSV_URL + "&t=" + new Date().getTime(), { cache: "no-store" });
             const csvText = await response.text();
+            
+            // Simpan teks CSV mentah untuk kebutuhan backup file
+            rawCsvLines = csvText;
+
             const rows = parseCSV(csvText);
 
             for (let i = 1; i < rows.length; i++) {
@@ -456,10 +433,8 @@
             console.error("Gagal membaca CSV:", err);
         }
 
-        // Murni hanya membaca data dari Google Sheets (Tanpa LocalStorage)
         rawDataList = fetchedCSVData;
 
-        // Urutkan data berdasarkan tanggal
         rawDataList.sort((a, b) => {
             const parseDate = (dateStr) => {
                 if (!dateStr || dateStr === '-') return new Date(0);
@@ -477,6 +452,28 @@
 
         const now = new Date();
         document.getElementById('lastUpdate').innerText = `(${now.getHours().toString().padStart(2,'0')}.${now.getMinutes().toString().padStart(2,'0')})`;
+    }
+
+    // FITUR PENARIKAN DATA / BACKUP CSV
+    function backupDataCSV() {
+        if (!rawCsvLines) {
+            alert('Data belum termuat sempurna atau kosong.');
+            return;
+        }
+
+        const blob = new Blob([rawCsvLines], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        
+        // Buat nama file otomatis dengan tanggal hari ini
+        const d = new Date();
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `Backup_Loading_Shipment_${dateStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     function parseCSV(text) {
