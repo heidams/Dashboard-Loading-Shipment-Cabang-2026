@@ -165,7 +165,7 @@
                     <textarea id="keterangan" placeholder="Tuliskan kendala jika ada..."></textarea>
                 </div>
 
-                <!-- UPLOAD GAMBAR (WAJIB LAMPIRKAN FOTO) -->
+                <!-- UPLOAD GAMBAR -->
                 <div class="form-group">
                     <label>Upload Gambar Mulai Loading <span style="color:red;">*</span></label>
                     <input type="file" id="gambarMulai" accept="image/*" required>
@@ -352,7 +352,6 @@
         alert('Timer loading dimulai!');
     }
 
-    // Kompresi Gambar sebelum disimpan ke Base64 agar localStorage tidak Penuh
     function fileToBase64(file) {
         return new Promise((resolve, reject) => {
             if (!file) resolve('');
@@ -440,7 +439,7 @@
         try {
             localStorage.setItem('localShipmentData', JSON.stringify(localSubmissions));
         } catch (e) {
-            alert('Penyimpanan lokal penuh, beberapa data foto mungkin tidak dapat disimpan secara lengkap.');
+            console.warn('LocalStorage penuh.');
         }
 
         alert(`Data Berhasil Disimpan & Masuk Dashboard!\nStatus: ${currentStatus}`);
@@ -457,7 +456,8 @@
     async function loadSpreadsheetData() {
         let fetchedCSVData = [];
         try {
-            const response = await fetch(CSV_URL + "&t=" + new Date().getTime());
+            // Mencegah cache browser di HP/Laptop agar data selalu realtime dari Sheets
+            const response = await fetch(CSV_URL + "&t=" + new Date().getTime(), { cache: "no-store" });
             const csvText = await response.text();
             const rows = parseCSV(csvText);
 
@@ -496,9 +496,11 @@
             console.error("Gagal membaca CSV:", err);
         }
 
+        // Ambil ulang localSubmissions terbaru
+        localSubmissions = JSON.parse(localStorage.getItem('localShipmentData')) || [];
         rawDataList = [...localSubmissions, ...fetchedCSVData];
 
-        // Memastikan data terurut otomatis berdasarkan tanggal (terkecil ke terbesar)
+        // Urutkan data berdasarkan tanggal
         rawDataList.sort((a, b) => {
             const parseDate = (dateStr) => {
                 if (!dateStr || dateStr === '-') return new Date(0);
@@ -673,7 +675,6 @@
         });
     }
 
-    // Inisialisasi aplikasi saat dimuat
     window.addEventListener('DOMContentLoaded', () => {
         switchTab('input');
     });
