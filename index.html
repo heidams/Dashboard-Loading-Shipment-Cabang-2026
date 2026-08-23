@@ -273,11 +273,13 @@
 
 <script>
     const BASE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
+    
+    // GANTI URL DI BAWAH INI DENGAN WEB APP URL GOOGLE APPS SCRIPT ANDA
     const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA"; 
 
     let rawDataList = [];
     let rawCsvLines = [];
-    let localSubmissions = []; // <-- ARRAY BARU: Menyimpan sementara data yang disubmit hari ini
+    let localSubmissions = []; // Menyimpan sementara data input sebelum masuk ke Google Sheets
     let picChartInstance = null;
     let destChartInstance = null;
     let startTime = null;
@@ -392,7 +394,7 @@
         try {
             document.querySelector('.btn-stop').innerText = "Menyimpan Data...";
             
-            // Proses 1: Tembak data ke Google Apps Script (berjalan di latar belakang)
+            // Proses 1: Kirim data ke Google Apps Script (Latar Belakang)
             fetch(WEB_APP_URL, {
                 method: "POST",
                 mode: "no-cors",
@@ -400,7 +402,7 @@
                 body: JSON.stringify(payload)
             });
 
-            // Proses 2: SUNTIKKAN DATA SECARA LOKAL AGAR LANGSUNG TAMPIL
+            // Proses 2: Suntikkan langsung ke Dashboard lokal agar langsung update tanpa nunggu delay CSV
             const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
             const localBulan = monthNames[now.getMonth()];
             const localTanggal = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
@@ -431,7 +433,7 @@
             document.getElementById('reqBadge').style.display = 'none';
             startTime = null;
             
-            // Pindah langsung ke Dashboard (tanpa nunggu delay CSV Google)
+            // Pindah otomatis ke tab Dashboard
             setTimeout(() => { switchTab('dashboard'); }, 500);
 
         } catch (err) {
@@ -487,13 +489,11 @@
             console.error("Gagal membaca CSV:", err);
         }
 
-        // PENGGABUNGAN DATA: Cek data CSV dan tambahkan data lokal jika CSV belum terupdate
+        // Gabungkan data CSV dengan data lokal (Optimistic Update)
         localSubmissions.forEach(localItem => {
-            // Kita cek apakah data lokal ini sudah muncul di CSV (berdasarkan Nama PIC dan Jam Mulai)
             const isAlreadyInCSV = fetchedCSVData.some(csvItem => 
                 csvItem.pic === localItem.pic && csvItem.mulai === localItem.mulai
             );
-            // Jika belum ada di CSV (karena delay), kita tambahkan manual ke barisan dashboard
             if (!isAlreadyInCSV) {
                 fetchedCSVData.push(localItem);
             }
