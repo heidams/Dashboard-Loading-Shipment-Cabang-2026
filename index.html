@@ -288,9 +288,14 @@
         document.getElementById('pageDashboard').style.display = tabName === 'dashboard' ? 'block' : 'none';
         document.getElementById('btnTabInput').classList.toggle('active', tabName === 'input');
         document.getElementById('btnTabDashboard').classList.toggle('active', tabName === 'dashboard');
+
+        // Jika pindah ke tab dashboard, refresh sinkronisasi tampilan
+        if(tabName === 'dashboard') {
+            populateFilterDropdowns(rawDataList);
+            applyFilters();
+        }
     }
 
-    // UPDATE TARGET WAKTU BERDASARKAN DATABASE JUMLAH BOX
     function updateTargetTime() {
         const box = parseInt(document.getElementById('jumlahBox').value) || 0;
         let targetText = "-";
@@ -324,7 +329,6 @@
             const secs = (diffSeconds % 60).toString().padStart(2, '0');
             document.getElementById('timerDisplay').innerText = `${hrs}:${mins}:${secs}`;
 
-            // Evaluasi Target vs Real-time
             const statusDisp = document.getElementById('statusDisplay');
             const reqBadge = document.getElementById('reqBadge');
             const ketInput = document.getElementById('keterangan');
@@ -362,7 +366,6 @@
 
         const keteranganVal = document.getElementById('keterangan').value.trim();
 
-        // VALIDASI: Wajib isi keterangan jika Not Achieve
         if (currentStatus === "Not Achieve" && keteranganVal === "") {
             alert('Waktu loading melebihi target! Anda WAJIB mengisi Keterangan / Catatan Kendala.');
             document.getElementById('keterangan').focus();
@@ -389,7 +392,7 @@
         const base64Mulai = await fileToBase64(fileMulai);
         const base64Selesai = await fileToBase64(fileSelesai);
 
-        const payload = {
+        const newItem = {
             bulan: namaBulan[now.getMonth()],
             tanggal: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
             pic: picVal,
@@ -406,20 +409,32 @@
             gambarSelesai: base64Selesai
         };
 
+        // SINKRONISASI INSTAN: Tambahkan data ke array lokal
+        rawDataList.unshift(newItem);
+
+        // Kirim ke Google Apps Script / Spreadsheet (Jika URL diset)
         if (WEB_APP_URL !== "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT") {
             try {
-                await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                alert('Data berhasil disimpan ke Spreadsheet!');
+                await fetch(WEB_APP_URL, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(newItem) 
+                });
             } catch (e) { console.error(e); }
-        } else {
-            alert(`Data tersimpan. Status: ${currentStatus}`);
         }
 
+        alert(`Data berhasil disimpan! Status: ${currentStatus}`);
+
+        // Reset Form
         document.getElementById('shipmentForm').reset();
+        document.getElementById('timerDisplay').innerText = "00:00:00";
         document.getElementById('keterangan').classList.remove('required-error');
         document.getElementById('reqBadge').style.display = 'none';
+        startTime = null;
         
-        setTimeout(async () => { await loadSpreadsheetData(); switchTab('dashboard'); }, 1500);
+        // Pindah dan perbarui Dashboard Analytics langsung
+        switchTab('dashboard');
     }
 
     async function loadSpreadsheetData() {
@@ -428,11 +443,11 @@
             const csvText = await response.text();
             const rows = parseCSV(csvText);
 
-            rawDataList = [];
+            const fetchedData = [];
             for (let i = 1; i < rows.length; i++) {
                 const r = rows[i];
                 if (r.length > 1 && r.some(cell => cell.trim() !== '')) {
-                    rawDataList.push({
+                    fetchedData.push({
                         bulan: r[0] || '-',
                         tanggal: r[1] || '-',
                         pic: r[2] || 'Unassigned',
@@ -449,6 +464,15 @@
                         gambarSelesai: r[13] || ''
                     });
                 }
+            }
+
+            // Gabungkan data dari CSV dengan input baru yang belum ada di CSV
+            if(rawDataList.length === 0) {
+                rawDataList = fetchedData;
+            } else {
+                // Pertahankan input baru lokal di atas data Spreadsheet
+                const newLocalItems = rawDataList.filter(item => item.gambarMulai.startsWith('data:'));
+                rawDataList = [...newLocalItems, ...fetchedData];
             }
 
             populateFilterDropdowns(rawDataList);
