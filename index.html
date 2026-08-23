@@ -278,14 +278,13 @@
 </div>
 
 <script>
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
-    const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA"; // <-- Masukkan URL Web App Google Apps Script Anda di sini
+    const BASE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
+    const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA"; // <-- Pastikan URL Web Apps Anda sudah dipasang di sini
 
     let rawDataList = [];
     let rawCsvLines = [];
     let picChartInstance = null;
     let destChartInstance = null;
-    let startTimeStartVal = null;
     let startTime = null;
     let timerInterval = null;
     let targetSeconds = 0;
@@ -418,10 +417,10 @@
             document.getElementById('reqBadge').style.display = 'none';
             startTime = null;
             
-            // Beri jeda 2 detik agar Google Sheets sempat menyimpan, lalu pindah ke dashboard
+            // Beri jeda 2.5 detik agar Google Sheets sempat menyimpan, lalu pindah ke dashboard
             setTimeout(() => {
                 switchTab('dashboard');
-            }, 2000);
+            }, 2500);
 
         } catch (err) {
             console.error("Gagal menyimpan:", err);
@@ -434,7 +433,9 @@
     async function loadSpreadsheetData() {
         let fetchedCSVData = [];
         try {
-            const response = await fetch(CSV_URL + "&t=" + new Date().getTime(), { cache: "no-store" });
+            // Menambahkan timestamp agar browser tidak mengambil data lama (cache)
+            const freshCSVUrl = BASE_CSV_URL + "&t=" + new Date().getTime();
+            const response = await fetch(freshCSVUrl, { cache: "no-store" });
             const csvText = await response.text();
             
             rawCsvLines = csvText;
