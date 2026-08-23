@@ -31,6 +31,14 @@
         .status-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #166534; background: #dcfce7; padding: 6px 12px; border-radius: 20px; font-weight: 600; }
         .status-dot { width: 8px; height: 8px; background-color: var(--success-color); border-radius: 50%; display: inline-block; }
 
+        /* Filter Section */
+        .filter-card { background: var(--card-bg); padding: 15px 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 180px; }
+        .filter-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .filter-group select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; color: var(--text-dark); outline: none; background: #fff; }
+        .btn-reset { padding: 9px 16px; background: #f1f5f9; color: var(--text-muted); border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; align-self: flex-end; }
+        .btn-reset:hover { background: #e2e8f0; }
+
         /* KPI Cards */
         .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
         .kpi-card { background: var(--card-bg); padding: 18px 20px; border-radius: 10px; border: 1px solid #e2e8f0; }
@@ -85,6 +93,32 @@
             </div>
         </div>
 
+        <!-- FILTER ANALISIS DATA -->
+        <div class="filter-card">
+            <div class="filter-group">
+                <label>Filter Bulan</label>
+                <select id="filterBulan" onchange="applyFilters()">
+                    <option value="ALL">Semua Bulan</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Filter Nama PIC</label>
+                <select id="filterPIC" onchange="applyFilters()">
+                    <option value="ALL">Semua PIC</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Filter Status Target</label>
+                <select id="filterStatus" onchange="applyFilters()">
+                    <option value="ALL">Semua Status</option>
+                    <option value="Achieve">Achieve</option>
+                    <option value="Not Achieve">Not Achieve</option>
+                </select>
+            </div>
+            <button class="btn-reset" onclick="resetFilters()">Reset Filter</button>
+        </div>
+
+        <!-- KPI METRICS -->
         <div class="kpi-grid">
             <div class="kpi-card total"><div class="title">TOTAL SHIPMENT</div><div class="value" id="kpiTotal">0</div></div>
             <div class="kpi-card achieve"><div class="title">ACHIEVE TARGET</div><div class="value" id="kpiAchieve">0</div></div>
@@ -92,6 +126,7 @@
             <div class="kpi-card rate"><div class="title">% ACHIEVEMENT RATE</div><div class="value" id="kpiRate">0%</div></div>
         </div>
 
+        <!-- CHARTS -->
         <div class="charts-grid">
             <div class="chart-card">
                 <h3>Pencapaian Target per PIC</h3>
@@ -103,6 +138,7 @@
             </div>
         </div>
 
+        <!-- TABEL DATA REALTIME -->
         <div class="table-card">
             <h3 style="margin-bottom: 15px;">Data Real-time Loading Shipment</h3>
             <div class="table-responsive">
@@ -179,6 +215,7 @@
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
     const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT";
 
+    let rawDataList = [];
     let picChartInstance = null;
     let destChartInstance = null;
     let startTime = null;
@@ -197,12 +234,11 @@
             const csvText = await response.text();
             const rows = parseCSV(csvText);
 
-            const dataList = [];
+            rawDataList = [];
             for (let i = 1; i < rows.length; i++) {
                 const r = rows[i];
                 if (r.length > 1 && r.some(cell => cell.trim() !== '')) {
-                    // Pemetaan berdasarkan urutan kolom di gambar Spreadsheet
-                    dataList.push({
+                    rawDataList.push({
                         bulan: r[0] || '-',
                         tanggal: r[1] || '-',
                         pic: r[2] || 'Unassigned',
@@ -221,7 +257,9 @@
                 }
             }
 
-            updateDashboardUI(dataList);
+            populateFilterDropdowns(rawDataList);
+            applyFilters();
+
             const now = new Date();
             document.getElementById('lastUpdate').innerText = `(${now.getHours().toString().padStart(2,'0')}.${now.getMinutes().toString().padStart(2,'0')})`;
         } catch (err) {
@@ -244,6 +282,65 @@
             values.push(value.trim());
             return values;
         });
+    }
+
+    function populateFilterDropdowns(data) {
+        const selectBulan = document.getElementById('filterBulan');
+        const selectPIC = document.getElementById('filterPIC');
+
+        const bulanSet = new Set();
+        const picSet = new Set();
+
+        data.forEach(item => {
+            if (item.bulan && item.bulan !== '-') bulanSet.add(item.bulan);
+            if (item.pic && item.pic !== 'Unassigned') picSet.add(item.pic);
+        });
+
+        // Simpan nilai pilihan sebelumnya agar tidak ter-reset otomatis jika re-fetch
+        const currentBulan = selectBulan.value;
+        const currentPIC = selectPIC.value;
+
+        selectBulan.innerHTML = '<option value="ALL">Semua Bulan</option>';
+        bulanSet.forEach(b => {
+            selectBulan.innerHTML += `<option value="${b}">${b}</option>`;
+        });
+
+        selectPIC.innerHTML = '<option value="ALL">Semua PIC</option>';
+        picSet.forEach(p => {
+            selectPIC.innerHTML += `<option value="${p}">${p}</option>`;
+        });
+
+        selectBulan.value = currentBulan;
+        selectPIC.value = currentPIC;
+    }
+
+    function applyFilters() {
+        const selectedBulan = document.getElementById('filterBulan').value;
+        const selectedPIC = document.getElementById('filterPIC').value;
+        const selectedStatus = document.getElementById('filterStatus').value;
+
+        const filteredData = rawDataList.filter(item => {
+            const matchBulan = (selectedBulan === 'ALL') || (item.bulan === selectedBulan);
+            const matchPIC = (selectedPIC === 'ALL') || (item.pic === selectedPIC);
+            
+            const status = (item.target || '').toLowerCase();
+            const isAchieve = status.includes('achieve') && !status.includes('not');
+            
+            let matchStatus = true;
+            if (selectedStatus === 'Achieve') matchStatus = isAchieve;
+            else if (selectedStatus === 'Not Achieve') matchStatus = !isAchieve;
+
+            return matchBulan && matchPIC && matchStatus;
+        });
+
+        updateDashboardUI(filteredData);
+    }
+
+    function resetFilters() {
+        document.getElementById('filterBulan').value = 'ALL';
+        document.getElementById('filterPIC').value = 'ALL';
+        document.getElementById('filterStatus').value = 'ALL';
+        applyFilters();
     }
 
     function updateDashboardUI(data) {
