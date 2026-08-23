@@ -161,13 +161,11 @@
                     <input type="number" id="jumlahPIC" value="0" required>
                 </div>
 
-                <!-- KETERANGAN KENDALA -->
                 <div class="form-group">
-                    <label id="lblKeterangan">Keterangan / Catatan Kendala <span id="reqBadge" style="color:red; display:none;">(Wajib diisi jika lewat target)</span></label>
+                    <label id="lblKeterangan">Keterangan / Catatan Kendala <span id="reqBadge" style="color:red; display:none;">(Wajib diisi)</span></label>
                     <textarea id="keterangan" placeholder="Tuliskan kendala jika ada..."></textarea>
                 </div>
 
-                <!-- UPLOAD GAMBAR -->
                 <div class="form-group">
                     <label>Upload Gambar Mulai Loading <span style="color:red;">*</span></label>
                     <input type="file" id="gambarMulai" accept="image/*" required>
@@ -199,7 +197,6 @@
             </div>
         </div>
 
-        <!-- FILTER & BACKUP DATA SECTION -->
         <div class="filter-card">
             <div class="filter-group">
                 <label>Filter Bulan</label>
@@ -225,7 +222,6 @@
             <button class="btn-backup" onclick="backupDataCSV()">📥 Download Backup CSV</button>
         </div>
 
-        <!-- KPI METRICS -->
         <div class="kpi-grid">
             <div class="kpi-card total"><div class="title">TOTAL SHIPMENT</div><div class="value" id="kpiTotal">0</div></div>
             <div class="kpi-card achieve"><div class="title">ACHIEVE TARGET</div><div class="value" id="kpiAchieve">0</div></div>
@@ -233,7 +229,6 @@
             <div class="kpi-card rate"><div class="title">% ACHIEVEMENT RATE</div><div class="value" id="kpiRate">0%</div></div>
         </div>
 
-        <!-- CHARTS -->
         <div class="charts-grid">
             <div class="chart-card">
                 <h3>Pencapaian Target per PIC</h3>
@@ -245,7 +240,6 @@
             </div>
         </div>
 
-        <!-- TABEL DATA REALTIME -->
         <div class="table-card">
             <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 24px; color: #0f172a;">Data Real-time Loading Shipment</h2>
             <div class="table-responsive">
@@ -279,10 +273,11 @@
 
 <script>
     const BASE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
-    const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA"; // <-- Pastikan URL Web Apps Anda sudah dipasang di sini
+    const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA"; 
 
     let rawDataList = [];
     let rawCsvLines = [];
+    let localSubmissions = []; // <-- ARRAY BARU: Menyimpan sementara data yang disubmit hari ini
     let picChartInstance = null;
     let destChartInstance = null;
     let startTime = null;
@@ -352,8 +347,6 @@
                 ketInput.classList.remove('required-error');
             }
         }, 1000);
-
-        alert('Timer loading dimulai!');
     }
 
     async function stopAndSubmit() {
@@ -361,15 +354,13 @@
 
         const fileMulai = document.getElementById('gambarMulai').files[0];
         const fileSelesai = document.getElementById('gambarSelesai').files[0];
-
         if (!fileMulai || !fileSelesai) {
-            alert('WAJIB melampirkan Gambar Mulai dan Gambar Selesai!');
-            return;
+            alert('WAJIB melampirkan Gambar Mulai dan Selesai!'); return;
         }
 
         const keteranganVal = document.getElementById('keterangan').value.trim();
         if (currentStatus === "Not Achieve" && keteranganVal === "") {
-            alert('Waktu loading melebihi target! Anda WAJIB mengisi Keterangan / Catatan Kendala.');
+            alert('Waktu loading melebihi target! Anda WAJIB mengisi Keterangan.');
             document.getElementById('keterangan').focus();
             return;
         }
@@ -383,9 +374,7 @@
         const secs = (diffSeconds % 60).toString().padStart(2, '0');
         const durasiStr = `${hrs}:${mins}:${secs}`;
 
-        const formatTimeStr = (d) => {
-            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-        };
+        const formatTimeStr = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 
         const payload = {
             pic: document.getElementById('pic').value,
@@ -403,24 +392,47 @@
         try {
             document.querySelector('.btn-stop').innerText = "Menyimpan Data...";
             
-            await fetch(WEB_APP_URL, {
+            // Proses 1: Tembak data ke Google Apps Script (berjalan di latar belakang)
+            fetch(WEB_APP_URL, {
                 method: "POST",
                 mode: "no-cors",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
+            // Proses 2: SUNTIKKAN DATA SECARA LOKAL AGAR LANGSUNG TAMPIL
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            const localBulan = monthNames[now.getMonth()];
+            const localTanggal = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+            
+            localSubmissions.push({
+                bulan: localBulan,
+                tanggal: localTanggal,
+                pic: payload.pic,
+                tujuan: payload.tujuan,
+                jenisMobil: payload.jenisMobil,
+                mulai: payload.mulai,
+                selesai: payload.selesai,
+                jumlahBox: payload.jumlahBox,
+                jumlahPIC: payload.jumlahPIC,
+                durasi: payload.durasi,
+                target: payload.target,
+                keterangan: payload.keterangan,
+                gambarMulai: '-', 
+                gambarSelesai: '-' 
+            });
+
             alert('Data berhasil disimpan dan otomatis terkirim ke Google Sheets!');
+            
+            // Reset Form State
             document.getElementById('shipmentForm').reset();
             document.getElementById('timerDisplay').innerText = "00:00:00";
             document.getElementById('keterangan').classList.remove('required-error');
             document.getElementById('reqBadge').style.display = 'none';
             startTime = null;
             
-            // Beri jeda 2.5 detik agar Google Sheets sempat menyimpan, lalu pindah ke dashboard
-            setTimeout(() => {
-                switchTab('dashboard');
-            }, 2500);
+            // Pindah langsung ke Dashboard (tanpa nunggu delay CSV Google)
+            setTimeout(() => { switchTab('dashboard'); }, 500);
 
         } catch (err) {
             console.error("Gagal menyimpan:", err);
@@ -433,7 +445,6 @@
     async function loadSpreadsheetData() {
         let fetchedCSVData = [];
         try {
-            // Menambahkan timestamp agar browser tidak mengambil data lama (cache)
             const freshCSVUrl = BASE_CSV_URL + "&t=" + new Date().getTime();
             const response = await fetch(freshCSVUrl, { cache: "no-store" });
             const csvText = await response.text();
@@ -476,15 +487,25 @@
             console.error("Gagal membaca CSV:", err);
         }
 
+        // PENGGABUNGAN DATA: Cek data CSV dan tambahkan data lokal jika CSV belum terupdate
+        localSubmissions.forEach(localItem => {
+            // Kita cek apakah data lokal ini sudah muncul di CSV (berdasarkan Nama PIC dan Jam Mulai)
+            const isAlreadyInCSV = fetchedCSVData.some(csvItem => 
+                csvItem.pic === localItem.pic && csvItem.mulai === localItem.mulai
+            );
+            // Jika belum ada di CSV (karena delay), kita tambahkan manual ke barisan dashboard
+            if (!isAlreadyInCSV) {
+                fetchedCSVData.push(localItem);
+            }
+        });
+
         rawDataList = fetchedCSVData;
 
         rawDataList.sort((a, b) => {
             const parseDate = (dateStr) => {
                 if (!dateStr || dateStr === '-') return new Date(0);
                 const parts = dateStr.trim().split('/');
-                if (parts.length === 3) {
-                    return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-                }
+                if (parts.length === 3) return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
                 return new Date(dateStr);
             };
             return parseDate(a.tanggal) - parseDate(b.tanggal);
@@ -498,15 +519,10 @@
     }
 
     function backupDataCSV() {
-        if (!rawCsvLines) {
-            alert('Data belum termuat sempurna atau kosong.');
-            return;
-        }
-
+        if (!rawCsvLines) { alert('Data kosong.'); return; }
         const blob = new Blob([rawCsvLines], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        
         const d = new Date();
         const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         
@@ -520,14 +536,12 @@
     function parseCSV(text) {
         let lines = text.split('\n');
         return lines.map(line => {
-            let values = [];
-            let insideQuote = false;
-            let value = '';
+            let values = [], insideQuote = false, value = '';
             for (let char of line) {
-                if (char === '"' && insideQuote) { insideQuote = false; }
-                else if (char === '"' && !insideQuote) { insideQuote = true; }
+                if (char === '"' && insideQuote) insideQuote = false;
+                else if (char === '"' && !insideQuote) insideQuote = true;
                 else if (char === ',' && !insideQuote) { values.push(value.trim()); value = ''; }
-                else { value += char; }
+                else value += char;
             }
             values.push(value.trim());
             return values;
@@ -537,26 +551,21 @@
     function populateFilterDropdowns(data) {
         const selectBulan = document.getElementById('filterBulan');
         const selectPIC = document.getElementById('filterPIC');
-
-        const bulanSet = new Set();
-        const picSet = new Set();
+        const bulanSet = new Set(), picSet = new Set();
 
         data.forEach(item => {
             if (item.bulan && item.bulan !== '-') bulanSet.add(item.bulan);
             if (item.pic && item.pic !== 'Unassigned') picSet.add(item.pic);
         });
 
-        const currentBulan = selectBulan.value;
-        const currentPIC = selectPIC.value;
-
+        const currentBulan = selectBulan.value, currentPIC = selectPIC.value;
         selectBulan.innerHTML = '<option value="ALL">Semua Bulan</option>';
         bulanSet.forEach(b => { selectBulan.innerHTML += `<option value="${b}">${b}</option>`; });
 
         selectPIC.innerHTML = '<option value="ALL">Semua PIC</option>';
         picSet.forEach(p => { selectPIC.innerHTML += `<option value="${p}">${p}</option>`; });
 
-        selectBulan.value = currentBulan;
-        selectPIC.value = currentPIC;
+        selectBulan.value = currentBulan; selectPIC.value = currentPIC;
     }
 
     function applyFilters() {
@@ -567,7 +576,6 @@
         const filteredData = rawDataList.filter(item => {
             const matchBulan = (selectedBulan === 'ALL') || (item.bulan === selectedBulan);
             const matchPIC = (selectedPIC === 'ALL') || (item.pic === selectedPIC);
-            
             const status = (item.target || '').toLowerCase();
             const isAchieve = status.includes('achieve') && !status.includes('not');
             
@@ -592,9 +600,7 @@
         const tbody = document.getElementById('dashboardTableBody');
         tbody.innerHTML = '';
 
-        if(data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="14" style="text-align: center;">Belum ada data shipment.</td></tr>';
-        }
+        if(data.length === 0) tbody.innerHTML = '<tr><td colspan="14" style="text-align: center;">Belum ada data shipment.</td></tr>';
 
         let achieve = 0, notAchieve = 0;
         const picStats = {}, destStats = {};
@@ -602,12 +608,10 @@
         data.forEach(item => {
             const status = (item.target || '').toLowerCase();
             const isAchieve = status.includes('achieve') && !status.includes('not');
-            
             if (isAchieve) achieve++; else notAchieve++;
 
             if (!picStats[item.pic]) picStats[item.pic] = { achieve: 0, notAchieve: 0 };
             if (isAchieve) picStats[item.pic].achieve++; else picStats[item.pic].notAchieve++;
-
             if (item.tujuan) destStats[item.tujuan] = (destStats[item.tujuan] || 0) + 1;
 
             const tr = document.createElement('tr');
@@ -644,37 +648,16 @@
         const labels = Object.keys(picStats);
         const ctx = document.getElementById('picChart').getContext('2d');
         if (picChartInstance) picChartInstance.destroy();
-
-        picChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    { label: 'Achieve', data: labels.map(p => picStats[p].achieve), backgroundColor: '#22c55e' },
-                    { label: 'Not Achieve', data: labels.map(p => picStats[p].notAchieve), backgroundColor: '#ef4444' }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
-        });
+        picChartInstance = new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [ { label: 'Achieve', data: labels.map(p => picStats[p].achieve), backgroundColor: '#22c55e' }, { label: 'Not Achieve', data: labels.map(p => picStats[p].notAchieve), backgroundColor: '#ef4444' } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } } });
     }
 
     function renderDestinationChart(destStats) {
         const ctx = document.getElementById('destinationChart').getContext('2d');
         if (destChartInstance) destChartInstance.destroy();
-
-        destChartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(destStats),
-                datasets: [{ data: Object.values(destStats), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'] }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-        });
+        destChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(destStats), datasets: [{ data: Object.values(destStats), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } });
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-        switchTab('input');
-    });
+    window.addEventListener('DOMContentLoaded', () => { switchTab('input'); });
 </script>
 </body>
 </html>
