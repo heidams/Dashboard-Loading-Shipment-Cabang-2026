@@ -1,464 +1,231 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring Loading Shipment 2026</title>
-    <!-- Chart.js CDN untuk grafik dashboard -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --primary-color: #0f172a;
-            --accent-color: #2563eb;
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --text-color: #334155;
-            --border-color: #e2e8f0;
-            --success-color: #22c55e;
-            --danger-color: #ef4444;
+// URL CSV Publish dari Google Sheets kamu
+const SCRIPT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
+
+let myChart = null;
+let startTime = null;
+let timerInterval = null;
+
+// --- 1. LOGIKA TAB ---
+function switchTab(tabName) {
+    const pageInput = document.getElementById('pageInput');
+    const pageDashboard = document.getElementById('pageDashboard');
+    const btnInput = document.getElementById('btnTabInput');
+    const btnDashboard = document.getElementById('btnTabDashboard');
+
+    if (tabName === 'input') {
+        pageInput.classList.add('active');
+        pageDashboard.classList.remove('active');
+        btnInput.classList.add('active');
+        btnDashboard.classList.remove('active');
+    } else {
+        pageInput.classList.remove('active');
+        pageDashboard.classList.add('active');
+        btnInput.classList.remove('active');
+        btnDashboard.classList.add('active');
+    }
+}
+
+// --- 2. BACA & PARSE DATA CSV DARI SPREADSHEET ---
+async function loadDataFromSpreadsheet() {
+    try {
+        const response = await fetch(SCRIPT_URL);
+        const csvText = await response.text();
+        const rows = parseCSV(csvText);
+
+        // Abaikan baris pertama (Header)
+        const dataList = [];
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.length > 1) {
+                dataList.push({
+                    waktu: row[0] || '-',
+                    pic: row[1] || '-',
+                    tujuan: row[2] || '-',
+                    jenisMobil: row[3] || '-',
+                    jumlahBox: row[4] || '0',
+                    statusTarget: row[5] || '-',
+                    durasi: row[6] || '-',
+                    fotoMulai: row[7] || '',
+                    fotoSelesai: row[8] || ''
+                });
+            }
         }
+        renderDashboard(dataList);
+    } catch (error) {
+        console.error("Gagal mengambil data CSV:", error);
+    }
+}
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            padding: 24px;
-        }
-
-        /* Header Utama & Navigasi Tab */
-        .header-container {
-            max-width: 1280px;
-            margin: 0 auto 24px auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-
-        .main-title {
-            font-size: 1.75rem;
-            color: var(--primary-color);
-            font-weight: 700;
-        }
-
-        .tab-nav {
-            display: flex;
-            background: #e2e8f0;
-            padding: 4px;
-            border-radius: 8px;
-            gap: 4px;
-        }
-
-        .tab-btn {
-            border: none;
-            background: transparent;
-            padding: 10px 20px;
-            font-weight: 600;
-            color: #64748b;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .tab-btn.active {
-            background: var(--card-bg);
-            color: var(--accent-color);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        /* Container Card */
-        .card {
-            max-width: 1280px;
-            margin: 0 auto;
-            background: var(--card-bg);
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid var(--border-color);
-        }
-
-        /* Pembungkus Halaman (Hidden/Show) */
-        .page-section {
-            display: none;
-        }
-
-        .page-section.active {
-            display: block;
-        }
-
-        /* Grid Input */
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .form-group label {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #475569;
-        }
-
-        .form-group input, .form-group select {
-            padding: 10px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            outline: none;
-            font-size: 0.9rem;
-        }
-
-        .form-group input:focus, .form-group select:focus {
-            border-color: var(--accent-color);
-        }
-
-        /* Tombol & Timer */
-        .action-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            color: white;
-            transition: opacity 0.2s;
-        }
-
-        .btn:hover { opacity: 0.9; }
-        .btn-start { background-color: var(--success-color); }
-        .btn-stop { background-color: var(--danger-color); }
-
-        .timer-badge {
-            background: #eff6ff;
-            color: var(--accent-color);
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 700;
-            border: 1px solid #bfdbfe;
-        }
-
-        /* Styling Tabel & Gambar Dashboard */
-        .table-responsive {
-            overflow-x: auto;
-            margin-top: 16px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            font-size: 0.9rem;
-        }
-
-        th, td {
-            padding: 12px;
-            border-bottom: 1px solid var(--border-color);
-            vertical-align: middle;
-        }
-
-        th {
-            background-color: #f8fafc;
-            color: var(--primary-color);
-        }
-
-        .img-preview {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-        }
-
-        .chart-container {
-            margin-top: 32px;
-            max-width: 100%;
-            height: 300px;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- Header & Navigasi Tab -->
-    <div class="header-container">
-        <h1 class="main-title">Dashboard Monitoring Loading Shipment 2026</h1>
-        <div class="tab-nav">
-            <button id="btnTabInput" class="tab-btn active" onclick="switchTab('input')">Input Operasional</button>
-            <button id="btnTabDashboard" class="tab-btn" onclick="switchTab('dashboard')">Dashboard Monitoring</button>
-        </div>
-    </div>
-
-    <!-- Container Utama -->
-    <div class="card">
+// Helper untuk parsing format CSV dengan aman
+function parseCSV(text) {
+    let lines = text.split('\n');
+    return lines.map(line => {
+        let values = [];
+        let insideQuote = false;
+        let value = '';
         
-        <!-- HALAMAN 1: INPUT OPERASIONAL -->
-        <div id="pageInput" class="page-section active">
-            <h2 style="margin-bottom: 20px; font-size: 1.1rem; color: var(--primary-color);">Input Operasional Loading Shipment</h2>
-            
-            <form id="loadingForm">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Nama PIC</label>
-                        <input type="text" id="pic" placeholder="Contoh: Budi" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Tujuan Pengiriman</label>
-                        <input type="text" id="tujuan" placeholder="Contoh: Bandung" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Jenis Mobil</label>
-                        <input type="text" id="jenisMobil" placeholder="Contoh: CDD Box" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Jumlah Box</label>
-                        <input type="number" id="jumlahBox" value="0" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Status Target</label>
-                        <select id="statusTarget">
-                            <option value="Achieve">Achieve</option>
-                            <option value="Not Achieve">Not Achieve</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Keterangan</label>
-                        <input type="text" id="keterangan" value="-">
-                    </div>
-                    <div class="form-group">
-                        <label>Foto Mulai</label>
-                        <input type="file" id="fotoMulai" accept="image/*">
-                    </div>
-                    <div class="form-group">
-                        <label>Foto Selesai</label>
-                        <input type="file" id="fotoSelesai" accept="image/*">
-                    </div>
-                </div>
-
-                <div class="action-row">
-                    <button type="button" class="btn btn-start" onclick="startLoading()">▶ Mulai Loading</button>
-                    <button type="button" class="btn btn-stop" onclick="stopAndSubmit()">■ Selesai & Kirim</button>
-                    <div class="timer-badge">Durasi: <span id="timerDisplay">00:00:00</span></div>
-                </div>
-            </form>
-        </div>
-
-        <!-- HALAMAN 2: DASHBOARD MONITORING (Lengkap dengan Foto & Chart) -->
-        <div id="pageDashboard" class="page-section">
-            <h2 style="margin-bottom: 20px; font-size: 1.1rem; color: var(--primary-color);">Data Real-time Loading Shipment</h2>
-            
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Waktu</th>
-                            <th>PIC</th>
-                            <th>Tujuan</th>
-                            <th>Jenis Mobil</th>
-                            <th>Box</th>
-                            <th>Durasi</th>
-                            <th>Status</th>
-                            <th>Foto Mulai</th>
-                            <th>Foto Selesai</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dashboardTableBody">
-                        <tr>
-                            <td colspan="9" style="text-align: center; color: #94a3b8;">Belum ada data terbaru...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Area Chart Monitoring -->
-            <div class="chart-container">
-                <canvas id="shipmentChart"></canvas>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- JavaScript Logika Tab, Kompresi, dan Monitoring -->
-    <script>
-        // --- 1. LOGIKA PERPINDAHAN TAB ---
-        function switchTab(tabName) {
-            const pageInput = document.getElementById('pageInput');
-            const pageDashboard = document.getElementById('pageDashboard');
-            const btnInput = document.getElementById('btnTabInput');
-            const btnDashboard = document.getElementById('btnTabDashboard');
-
-            if (tabName === 'input') {
-                pageInput.classList.add('active');
-                pageDashboard.classList.remove('active');
-                btnInput.classList.add('active');
-                btnDashboard.classList.remove('active');
+        for (let char of line) {
+            if (char === '"' && insideQuote) {
+                insideQuote = false;
+            } else if (char === '"' && !insideQuote) {
+                insideQuote = true;
+            } else if (char === ',' && !insideQuote) {
+                values.push(value.trim());
+                value = '';
             } else {
-                pageInput.classList.remove('active');
-                pageDashboard.classList.add('active');
-                btnInput.classList.remove('active');
-                btnDashboard.classList.add('active');
+                value += char;
             }
         }
+        values.push(value.trim());
+        return values;
+    });
+}
 
-        // --- 2. LOGIKA KOMPRESI GAMBAR (CLIENT-SIDE) ---
-        function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
-            return new Promise((resolve, reject) => {
-                if (!file) { resolve(""); return; }
+function renderDashboard(dataList) {
+    const tbody = document.getElementById('dashboardTableBody');
+    tbody.innerHTML = '';
 
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        let width = img.width;
-                        let height = img.height;
+    let achieveCount = 0;
+    let notAchieveCount = 0;
 
-                        if (width > height) {
-                            if (width > maxWidth) {
-                                height = Math.round((height * maxWidth) / width);
-                                width = maxWidth;
-                            }
-                        } else {
-                            if (height > maxHeight) {
-                                width = Math.round((width * maxHeight) / height);
-                                height = maxHeight;
-                            }
-                        }
+    if (dataList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #94a3b8;">Belum ada data...</td></tr>';
+        return;
+    }
 
-                        const canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
+    dataList.forEach(item => {
+        if (item.statusTarget === 'Achieve') achieveCount++;
+        else if (item.statusTarget === 'Not Achieve') notAchieveCount++;
 
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.waktu}</td>
+            <td>${item.pic}</td>
+            <td>${item.tujuan}</td>
+            <td>${item.jenisMobil}</td>
+            <td>${item.jumlahBox}</td>
+            <td>${item.durasi}</td>
+            <td><span style="color: ${item.statusTarget === 'Achieve' ? 'var(--success-color)' : 'var(--danger-color)'}; font-weight: bold;">${item.statusTarget}</span></td>
+            <td>${item.fotoMulai ? `<img src="${item.fotoMulai}" class="img-preview">` : '-'}</td>
+            <td>${item.fotoSelesai ? `<img src="${item.fotoSelesai}" class="img-preview">` : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
 
-                        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-                        resolve(compressedBase64);
-                    };
-                    img.onerror = (err) => reject(err);
-                };
-                reader.onerror = (err) => reject(err);
-            });
-        }
+    updateChart(achieveCount, notAchieveCount);
+}
 
-        // --- 3. LOGIKA OPERASIONAL TIMER & SUBMIT ---
-        let startTime = null;
-        let timerInterval = null;
+// --- 3. KOMPRESI GAMBAR ---
+function compressImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        if (!file) { resolve(""); return; }
 
-        function startLoading() {
-            startTime = new Date();
-            document.getElementById('timerDisplay').innerText = "00:00:00";
-            
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                const diff = new Date() - startTime;
-                const hrs = Math.floor(diff / 3600000).toString().padStart(2, '0');
-                const mins = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-                const secs = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                document.getElementById('timerDisplay').innerText = `${hrs}:${mins}:${secs}`;
-            }, 1000);
-            
-            alert('Proses loading dimulai!');
-        }
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
 
-        async function stopAndSubmit() {
-            if (!startTime) {
-                alert('Klik "Mulai Loading" terlebih dahulu!');
-                return;
-            }
-
-            clearInterval(timerInterval);
-            
-            const fileMulai = document.getElementById('fotoMulai').files[0];
-            const fileSelesai = document.getElementById('fotoSelesai').files[0];
-
-            // Proses Kompresi Gambar
-            const imgMulaiBase64 = await compressImage(fileMulai);
-            const imgSelesaiBase64 = await compressImage(fileSelesai);
-
-            const dataBaru = {
-                waktu: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                pic: document.getElementById('pic').value,
-                tujuan: document.getElementById('tujuan').value,
-                jenisMobil: document.getElementById('jenisMobil').value,
-                jumlahBox: document.getElementById('jumlahBox').value,
-                statusTarget: document.getElementById('statusTarget').value,
-                durasi: document.getElementById('timerDisplay').innerText,
-                fotoMulai: imgMulaiBase64,
-                fotoSelesai: imgSelesaiBase64
-            };
-
-            // Tambahkan data ke tabel dashboard secara langsung
-            tambahKeTabelDashboard(dataBaru);
-            alert('Data & foto terkompresi berhasil disimpan!');
-
-            // Pindah ke halaman dashboard
-            switchTab('dashboard');
-        }
-
-        function tambahKeTabelDashboard(data) {
-            const tbody = document.getElementById('dashboardTableBody');
-            
-            // Hapus teks 'Belum ada data' jika ini data pertama
-            if (tbody.children[0] && tbody.children[0].children.length === 1) {
-                tbody.innerHTML = '';
-            }
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${data.waktu}</td>
-                <td>${data.pic}</td>
-                <td>${data.tujuan}</td>
-                <td>${data.jenisMobil}</td>
-                <td>${data.jumlahBox}</td>
-                <td>${data.durasi}</td>
-                <td><span style="color: ${data.statusTarget === 'Achieve' ? 'var(--success-color)' : 'var(--danger-color)'}; font-weight: bold;">${data.statusTarget}</span></td>
-                <td>${data.fotoMulai ? `<img src="${data.fotoMulai}" class="img-preview">` : '-'}</td>
-                <td>${data.fotoSelesai ? `<img src="${data.fotoSelesai}" class="img-preview">` : '-'}</td>
-            `;
-            tbody.prepend(tr);
-        }
-
-        // --- 4. INISIALISASI CHART MONITORING ---
-        window.onload = function() {
-            const ctx = document.getElementById('shipmentChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Achieve', 'Not Achieve'],
-                    datasets: [{
-                        label: 'Total Shipment',
-                        data: [0, 0],
-                        backgroundColor: ['#22c55e', '#ef4444']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: { display: true, text: 'Grafik Status Target Shipment' }
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
                     }
                 }
-            });
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = (err) => reject(err);
         };
-    </script>
-</body>
-</html>
+        reader.onerror = (err) => reject(err);
+    });
+}
+
+// --- 4. TIMER & SUBMIT DUMMY/LOCAL ---
+function startLoading() {
+    startTime = new Date();
+    document.getElementById('timerDisplay').innerText = "00:00:00";
+    
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        const diff = new Date() - startTime;
+        const hrs = Math.floor(diff / 3600000).toString().padStart(2, '0');
+        const mins = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+        const secs = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+        document.getElementById('timerDisplay').innerText = `${hrs}:${mins}:${secs}`;
+    }, 1000);
+    
+    alert('Proses loading dimulai!');
+}
+
+async function stopAndSubmit() {
+    if (!startTime) {
+        alert('Klik "Mulai Loading" terlebih dahulu!');
+        return;
+    }
+
+    clearInterval(timerInterval);
+    
+    const fileMulai = document.getElementById('fotoMulai').files[0];
+    const fileSelesai = document.getElementById('fotoSelesai').files[0];
+
+    const imgMulaiBase64 = await compressImage(fileMulai);
+    const imgSelesaiBase64 = await compressImage(fileSelesai);
+
+    alert('Data terkompresi berhasil diproses! Silakan perbarui Spreadsheet untuk melihat sinkronisasi.');
+
+    // Muat ulang data dari CSV
+    await loadDataFromSpreadsheet();
+    switchTab('dashboard');
+}
+
+// --- 5. INITIALIZE CHART ---
+function initChart() {
+    const ctx = document.getElementById('shipmentChart').getContext('2d');
+    myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Achieve', 'Not Achieve'],
+            datasets: [{
+                label: 'Total Shipment',
+                data: [0, 0],
+                backgroundColor: ['#22c55e', '#ef4444']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Grafik Status Target Shipment' }
+            }
+        }
+    });
+}
+
+function updateChart(achieve, notAchieve) {
+    if (myChart) {
+        myChart.data.datasets[0].data = [achieve, notAchieve];
+        myChart.update();
+    }
+}
+
+// Jalankan otomatis saat web dibuka
+window.onload = function() {
+    initChart();
+    loadDataFromSpreadsheet();
+};
