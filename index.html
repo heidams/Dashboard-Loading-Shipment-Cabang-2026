@@ -16,23 +16,78 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
         }
 
-        h2 {
+        h2, h3 {
             color: #1e293b;
+            margin-top: 0;
             margin-bottom: 20px;
+        }
+
+        /* Form Grid Layout */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #475569;
+            margin-bottom: 5px;
+        }
+
+        .form-group input, .form-group select {
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group input[type="file"] {
+            padding: 5px;
+            background-color: #f8fafc;
+        }
+
+        .btn-submit {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-submit:hover {
+            background-color: #1d4ed8;
+        }
+
+        /* Table Styling */
+        .table-responsive {
+            overflow-x: auto;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         th, td {
             padding: 10px 12px;
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
         }
 
         th {
@@ -62,146 +117,263 @@
 </head>
 <body>
 
+<!-- FORM INPUT DATA SHIPMENT -->
+<div class="container">
+    <h3>Input Loading Shipment Baru</h3>
+    <form id="shipmentForm">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="bulan">Bulan</label>
+                <select id="bulan" required>
+                    <option value="">-- Pilih Bulan --</option>
+                    <option value="Januari">Januari</option>
+                    <option value="Februari">Februari</option>
+                    <option value="Maret">Maret</option>
+                    <option value="April">April</option>
+                    <option value="Mei">Mei</option>
+                    <option value="Juni">Juni</option>
+                    <option value="Juli">Juli</option>
+                    <option value="Agustus">Agustus</option>
+                    <option value="September">September</option>
+                    <option value="Oktober">Oktober</option>
+                    <option value="November">November</option>
+                    <option value="Desember">Desember</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tanggal">Tanggal (DD/MM/YYYY)</label>
+                <input type="text" id="tanggal" placeholder="Contoh: 24/08/2026" pattern="\d{2}/\d{2}/\d{4}" title="Format harus DD/MM/YYYY" required>
+            </div>
+
+            <div class="form-group">
+                <label for="namaPic">Nama PIC</label>
+                <input type="text" id="namaPic" required>
+            </div>
+
+            <div class="form-group">
+                <label for="tujuan">Tujuan Pengiriman</label>
+                <input type="text" id="tujuan" required>
+            </div>
+
+            <div class="form-group">
+                <label for="jenisMobil">Jenis Mobil</label>
+                <input type="text" id="jenisMobil" required>
+            </div>
+
+            <div class="form-group">
+                <label for="mulai">Mulai (Jam)</label>
+                <input type="time" id="mulai" required>
+            </div>
+
+            <div class="form-group">
+                <label for="selesai">Selesai (Jam)</label>
+                <input type="time" id="selesai" required>
+            </div>
+
+            <div class="form-group">
+                <label for="jumlahBox">Jumlah Box</label>
+                <input type="number" id="jumlahBox" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="jumlahPic">Jumlah PIC</label>
+                <input type="number" id="jumlahPic" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="durasi">Durasi Loading</label>
+                <input type="text" id="durasi" placeholder="00:28:00" required>
+            </div>
+
+            <div class="form-group">
+                <label for="targetStatus">Target Status</label>
+                <select id="targetStatus" required>
+                    <option value="Achieve">Achieve</option>
+                    <option value="Not Achieve">Not Achieve</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="kendala">Keterangan Kendala</label>
+                <input type="text" id="kendala" placeholder="Isi '-' jika tidak ada" required>
+            </div>
+
+            <!-- INPUT FOTO FOTO MULAI & SELESAI (WAJIB / REQUIRED) -->
+            <div class="form-group">
+                <label for="gambarMulai">Gambar Mulai (Wajib Foto)</label>
+                <input type="file" id="gambarMulai" accept="image/*" required>
+            </div>
+
+            <div class="form-group">
+                <label for="gambarSelesai">Gambar Selesai (Wajib Foto)</label>
+                <input type="file" id="gambarSelesai" accept="image/*" required>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-submit">Simpan & Urutkan Data</button>
+    </form>
+</div>
+
+<!-- TABEL DATA SHIPMENT -->
 <div class="container">
     <h2>Data Real-time Loading Shipment</h2>
-
-    <table id="shipmentTable">
-        <thead>
-            <tr>
-                <th>Bulan</th>
-                <th>Tanggal</th>
-                <th>Nama PIC</th>
-                <th>Tujuan Pengiriman</th>
-                <th>Jenis Mobil</th>
-                <th>Mulai</th>
-                <th>Selesai</th>
-                <th>Jumlah Box</th>
-                <th>Jumlah PIC</th>
-                <th>Durasi Loading</th>
-                <th>Target Status</th>
-                <th>Keterangan Kendala</th>
-                <th>Gambar Mulai</th>
-                <th>Gambar Selesai</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            <!-- Data awal (acak/belum urut) -->
-            <tr>
-                <td>Agustus</td>
-                <td>24/08/2026</td>
-                <td>Adam Rayhan</td>
-                <td>Bandung</td>
-                <td>Double Jumbo</td>
-                <td>04:33</td>
-                <td>04:33</td>
-                <td>100</td>
-                <td>2</td>
-                <td>00:00:14</td>
-                <td><span class="badge-achieve">Achieve</span></td>
-                <td>uji coba</td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-            </tr>
-            <tr>
-                <td>Agustus</td>
-                <td>17/08/2026</td>
-                <td>Olifia Ekmanda</td>
-                <td>Bandung</td>
-                <td>Engkel Kecil</td>
-                <td>3:15</td>
-                <td>3:43</td>
-                <td>118</td>
-                <td>2</td>
-                <td>0:28:00</td>
-                <td><span class="badge-achieve">Achieve</span></td>
-                <td>-</td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-            </tr>
-            <tr>
-                <td>Agustus</td>
-                <td>17/08/2026</td>
-                <td>Olifia Ekmanda</td>
-                <td>Yogyakarta</td>
-                <td>Engkel Kecil</td>
-                <td>4:09</td>
-                <td>4:35</td>
-                <td>113</td>
-                <td>2</td>
-                <td>0:26:00</td>
-                <td><span class="badge-achieve">Achieve</span></td>
-                <td>-</td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-            </tr>
-            <tr>
-                <td>Agustus</td>
-                <td>18/08/2026</td>
-                <td>Olifia Ekmanda</td>
-                <td>Tangerang</td>
-                <td>Double Jumbo</td>
-                <td>1:34</td>
-                <td>2:18</td>
-                <td>230</td>
-                <td>2</td>
-                <td>0:44:00</td>
-                <td><span class="badge-achieve">Achieve</span></td>
-                <td>-</td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-            </tr>
-            <tr>
-                <td>Agustus</td>
-                <td>17/08/2026</td>
-                <td>Aji Kurnianto</td>
-                <td>Jakarta Utara</td>
-                <td>Double Jumbo</td>
-                <td>9:17</td>
-                <td>9:18</td>
-                <td>48</td>
-                <td>2</td>
-                <td>0:01:00</td>
-                <td><span class="badge-achieve">Achieve</span></td>
-                <td>-</td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-                <td><a href="#" class="link-foto">Lihat Foto</a></td>
-            </tr>
-        </tbody>
-    </table>
+    <div class="table-responsive">
+        <table id="shipmentTable">
+            <thead>
+                <tr>
+                    <th>Bulan</th>
+                    <th>Tanggal</th>
+                    <th>Nama PIC</th>
+                    <th>Tujuan Pengiriman</th>
+                    <th>Jenis Mobil</th>
+                    <th>Mulai</th>
+                    <th>Selesai</th>
+                    <th>Jumlah Box</th>
+                    <th>Jumlah PIC</th>
+                    <th>Durasi Loading</th>
+                    <th>Target Status</th>
+                    <th>Keterangan Kendala</th>
+                    <th>Gambar Mulai</th>
+                    <th>Gambar Selesai</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Data Awal -->
+                <tr>
+                    <td>Agustus</td>
+                    <td>24/08/2026</td>
+                    <td>Adam Rayhan</td>
+                    <td>Bandung</td>
+                    <td>Double Jumbo</td>
+                    <td>04:33</td>
+                    <td>04:33</td>
+                    <td>100</td>
+                    <td>2</td>
+                    <td>00:00:14</td>
+                    <td><span class="badge-achieve">Achieve</span></td>
+                    <td>uji coba</td>
+                    <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                    <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                </tr>
+                <tr>
+                    <td>Agustus</td>
+                    <td>17/08/2026</td>
+                    <td>Olifia Ekmanda</td>
+                    <td>Bandung</td>
+                    <td>Engkel Kecil</td>
+                    <td>03:15</td>
+                    <td>03:43</td>
+                    <td>118</td>
+                    <td>2</td>
+                    <td>00:28:00</td>
+                    <td><span class="badge-achieve">Achieve</span></td>
+                    <td>-</td>
+                    <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                    <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                </tr>
+                <tr>
+                    <td>Agustus</td>
+                    <td>18/08/2026</td>
+                    <td>Olifia Ekmanda</td>
+                    <td>Tangerang</td>
+                    <td>Double Jumbo</td>
+                    <td>01:34</td>
+                    <td>02:18</td>
+                    <td>230</td>
+                    <td>2</td>
+                    <td>00:44:00</td>
+                    <td><span class="badge-achieve">Achieve</span></td>
+                    <td>-</td>
+                    <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                    <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-    // Fungsi untuk mengubah string "DD/MM/YYYY" menjadi Date Object
+    // 1. Helper Function: Mengubah "DD/MM/YYYY" ke Date Object untuk Sorting
     function parseDate(dateStr) {
         const parts = dateStr.trim().split('/');
         const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // Month dimulai dari index 0 di JS
+        const month = parseInt(parts[1], 10) - 1;
         const year = parseInt(parts[2], 10);
         return new Date(year, month, day);
     }
 
-    // Fungsi untuk mengurutkan baris tabel berdasarkan kolom tanggal (Index 1)
+    // 2. Function: Mengurutkan Tabel berdasarkan kolom Tanggal (Index 1) dari kecil ke besar
     function sortTableByDate() {
         const tbody = document.getElementById('tableBody');
         const rows = Array.from(tbody.querySelectorAll('tr'));
 
         rows.sort((rowA, rowB) => {
-            // Mengambil teks dari kolom ke-2 (index 1) yaitu Tanggal
             const dateStrA = rowA.children[1].textContent;
             const dateStrB = rowB.children[1].textContent;
 
-            const dateA = parseDate(dateStrA);
-            const dateB = parseDate(dateStrB);
-
-            // Sorting Ascending (Kecil ke Terbesar)
-            return dateA - dateB;
+            return parseDate(dateStrA) - parseDate(dateStrB);
         });
 
-        // Masukkan kembali baris yang sudah diurutkan ke dalam tabel
+        // Tampilkan kembali baris yang sudah terurut
         rows.forEach(row => tbody.appendChild(row));
     }
 
-    // Jalankan fungsi sorting saat halaman selesai dimuat
+    // 3. Event Listener Form Submit
+    document.getElementById('shipmentForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // Mencegah reload halaman
+
+        // Ambil Nilai Input
+        const bulan = document.getElementById('bulan').value;
+        const tanggal = document.getElementById('tanggal').value;
+        const namaPic = document.getElementById('namaPic').value;
+        const tujuan = document.getElementById('tujuan').value;
+        const jenisMobil = document.getElementById('jenisMobil').value;
+        const mulai = document.getElementById('mulai').value;
+        const selesai = document.getElementById('selesai').value;
+        const jumlahBox = document.getElementById('jumlahBox').value;
+        const jumlahPic = document.getElementById('jumlahPic').value;
+        const durasi = document.getElementById('durasi').value;
+        const targetStatus = document.getElementById('targetStatus').value;
+        const kendala = document.getElementById('kendala').value;
+
+        // Ambil Elemen File Foto (Sudah di-validate required oleh HTML)
+        const gambarMulai = document.getElementById('gambarMulai').files[0];
+        const gambarSelesai = document.getElementById('gambarSelesai').files[0];
+
+        // Buat Baris Tabel Baru
+        const tbody = document.getElementById('tableBody');
+        const newRow = document.createElement('tr');
+
+        newRow.innerHTML = `
+            <td>${bulan}</td>
+            <td>${tanggal}</td>
+            <td>${namaPic}</td>
+            <td>${tujuan}</td>
+            <td>${jenisMobil}</td>
+            <td>${mulai}</td>
+            <td>${selesai}</td>
+            <td>${jumlahBox}</td>
+            <td>${jumlahPic}</td>
+            <td>${durasi}</td>
+            <td><span class="badge-achieve">${targetStatus}</span></td>
+            <td>${kendala}</td>
+            <td><a href="#" class="link-foto" title="${gambarMulai.name}">Lihat Foto</a></td>
+            <td><a href="#" class="link-foto" title="${gambarSelesai.name}">Lihat Foto</a></td>
+        `;
+
+        // Tambah ke tabel
+        tbody.appendChild(newRow);
+
+        // Jalankan sorting ulang agar tanggal baru berada di urutan yang benar
+        sortTableByDate();
+
+        // Reset Form
+        this.reset();
+        alert('Data berhasil disimpan dan diurutkan berdasarkan tanggal!');
+    });
+
+    // Jalankan sorting awal saat halaman dibuka
     document.addEventListener('DOMContentLoaded', sortTableByDate);
 </script>
 
