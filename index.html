@@ -59,7 +59,8 @@
         .form-card { background: var(--card-bg); padding: 25px; border-radius: 10px; border: 1px solid #e2e8f0; max-width: 600px; margin: 0 auto; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 5px; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fff; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fff; }
+        .form-group textarea { resize: vertical; min-height: 70px; }
         .timer-box { background: #f8fafc; text-align: center; padding: 15px; border-radius: 8px; font-size: 24px; font-weight: 700; color: var(--primary-color); margin-bottom: 15px; border: 1px solid #e2e8f0; }
         .btn-action { width: 100%; padding: 12px; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-bottom: 10px; }
         .btn-start { background: var(--success-color); color: white; }
@@ -90,7 +91,6 @@
         <div class="form-card">
             <h2 style="margin-bottom: 20px; font-size: 18px;">Input Loading Shipment</h2>
             <form id="shipmentForm">
-                <!-- DROPDOWN NAMA PIC -->
                 <div class="form-group">
                     <label>Nama PIC</label>
                     <select id="pic" required>
@@ -107,7 +107,6 @@
                     </select>
                 </div>
 
-                <!-- DROPDOWN TUJUAN PENGIRIMAN -->
                 <div class="form-group">
                     <label>Tujuan Pengiriman</label>
                     <select id="tujuan" required>
@@ -127,7 +126,6 @@
                     </select>
                 </div>
 
-                <!-- DROPDOWN JENIS MOBIL -->
                 <div class="form-group">
                     <label>Jenis Mobil</label>
                     <select id="jenisMobil" required>
@@ -149,12 +147,21 @@
                     <label>Jumlah PIC</label>
                     <input type="number" id="jumlahPIC" value="0" required>
                 </div>
+
+                <!-- INPUT KETERANGAN KENDALA -->
                 <div class="form-group">
-                    <label>Status Target</label>
-                    <select id="statusTarget">
-                        <option value="Achieve">Achieve</option>
-                        <option value="Not Achieve">Not Achieve</option>
-                    </select>
+                    <label>Keterangan / Catatan Kendala</label>
+                    <textarea id="keterangan" placeholder="Tuliskan kendala jika ada (Opsional)..."></textarea>
+                </div>
+
+                <!-- UPLOAD GAMBAR MULAI & SELESAI -->
+                <div class="form-group">
+                    <label>Upload Gambar Mulai Loading</label>
+                    <input type="file" id="gambarMulai" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label>Upload Gambar Selesai Loading</label>
+                    <input type="file" id="gambarSelesai" accept="image/*">
                 </div>
 
                 <div class="timer-box" id="timerDisplay">00:00:00</div>
@@ -340,14 +347,10 @@
         const currentPIC = selectPIC.value;
 
         selectBulan.innerHTML = '<option value="ALL">Semua Bulan</option>';
-        bulanSet.forEach(b => {
-            selectBulan.innerHTML += `<option value="${b}">${b}</option>`;
-        });
+        bulanSet.forEach(b => { selectBulan.innerHTML += `<option value="${b}">${b}</option>`; });
 
         selectPIC.innerHTML = '<option value="ALL">Semua PIC</option>';
-        picSet.forEach(p => {
-            selectPIC.innerHTML += `<option value="${p}">${p}</option>`;
-        });
+        picSet.forEach(p => { selectPIC.innerHTML += `<option value="${p}">${p}</option>`; });
 
         selectBulan.value = currentBulan;
         selectPIC.value = currentPIC;
@@ -475,6 +478,17 @@
         alert('Timer dimulai!');
     }
 
+    // KONVERSI FILE KE BASE64
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            if (!file) resolve('');
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
+
     async function stopAndSubmit() {
         if (!startTime) { alert('Klik "Mulai Loading" dulu!'); return; }
         clearInterval(timerInterval);
@@ -491,6 +505,12 @@
             return;
         }
 
+        const fileMulai = document.getElementById('gambarMulai').files[0];
+        const fileSelesai = document.getElementById('gambarSelesai').files[0];
+
+        const base64Mulai = await fileToBase64(fileMulai);
+        const base64Selesai = await fileToBase64(fileSelesai);
+
         const payload = {
             bulan: namaBulan[now.getMonth()],
             tanggal: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
@@ -502,10 +522,10 @@
             jumlahBox: document.getElementById('jumlahBox').value,
             jumlahPIC: document.getElementById('jumlahPIC').value,
             durasi: document.getElementById('timerDisplay').innerText,
-            target: document.getElementById('statusTarget').value,
-            keterangan: '',
-            gambarMulai: '',
-            gambarSelesai: ''
+            target: '', // Kosongkan/otomatis di spreadsheet
+            keterangan: document.getElementById('keterangan').value,
+            gambarMulai: base64Mulai,
+            gambarSelesai: base64Selesai
         };
 
         if (WEB_APP_URL !== "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT") {
