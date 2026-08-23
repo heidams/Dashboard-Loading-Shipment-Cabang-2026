@@ -20,6 +20,22 @@
         .dot.syncing { animation: blink 1s infinite; background-color: #eab308; }
         @keyframes blink { 50% { opacity: 0.3; } }
 
+        /* Form Input Section */
+        .form-container { background: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .form-container h2 { font-size: 16px; margin-bottom: 15px; color: #0f172a; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 12px; font-weight: 600; color: #475569; }
+        .form-group input, .form-group select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; outline: none; }
+        .form-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .btn { padding: 9px 16px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s; }
+        .btn-start { background-color: #22c55e; color: #fff; }
+        .btn-start:hover { background-color: #16a34a; }
+        .btn-stop { background-color: #ef4444; color: #fff; }
+        .btn-stop:hover { background-color: #dc2626; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .timer-display { font-weight: 700; font-size: 14px; color: #2563eb; background: #eff6ff; padding: 8px 12px; border-radius: 6px; border: 1px solid #bfdbfe; }
+
         /* KPI Stat Cards */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .card { background: #fff; padding: 18px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -64,6 +80,53 @@
             <span id="last-update" style="color: #94a3b8; font-size: 11px;">(Loading...)</span>
         </div>
     </header>
+
+    <!-- FORM INPUT OTOMATIS -->
+    <div class="form-container">
+        <h2>Input Operasional Loading Shipment</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Nama PIC</label>
+                <input type="text" id="input-pic" placeholder="Contoh: Budi">
+            </div>
+            <div class="form-group">
+                <label>Tujuan Pengiriman</label>
+                <input type="text" id="input-tujuan" placeholder="Contoh: Bandung">
+            </div>
+            <div class="form-group">
+                <label>Jenis Mobil</label>
+                <input type="text" id="input-mobil" placeholder="Contoh: CDD Box">
+            </div>
+            <div class="form-group">
+                <label>Jumlah Box</label>
+                <input type="number" id="input-box" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Status Target</label>
+                <select id="input-status">
+                    <option value="Achieve">Achieve</option>
+                    <option value="Not Achieve">Not Achieve</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Keterangan</label>
+                <input type="text" id="input-ket" placeholder="-">
+            </div>
+            <div class="form-group">
+                <label>Foto Mulai</label>
+                <input type="file" id="input-img-mulai" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label>Foto Selesai</label>
+                <input type="file" id="input-img-selesai" accept="image/*">
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-start" id="btn-start" onclick="startLoading()">▶ Mulai Loading</button>
+            <button class="btn btn-stop" id="btn-stop" onclick="stopAndSubmit()" disabled>⏹ Selesai & Kirim</button>
+            <div class="timer-display" id="timer">Durasi: 00:00:00</div>
+        </div>
+    </div>
 
     <!-- KPI Metric Cards -->
     <div class="stats-grid">
@@ -152,17 +215,110 @@
 
     <script>
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
+        
+        // TEMPELKAN URL GOOGLE APPS SCRIPT HASIL DEPLOY DI SINI:
+        const APPS_SCRIPT_URL = "URL_WEB_APP_GOOGLE_APPS_SCRIPT_KAMU";
 
         let allData = [];
         let picChartInstance = null;
         let tujuanChartInstance = null;
+        let startTime = null;
+        let timerInterval = null;
 
         const namaBulan = [
             "Januari", "Februari", "Maret", "April", "Mei", "Juni",
             "Juli", "Agustus", "September", "Oktober", "November", "Desember"
         ];
 
-        // Fungsi fleksibel untuk mencocokkan berbagai jenis kata kunci header
+        // LOGIKA TIMER
+        function startLoading() {
+            startTime = new Date();
+            document.getElementById('btn-start').disabled = true;
+            document.getElementById('btn-stop').disabled = false;
+            
+            timerInterval = setInterval(() => {
+                const now = new Date();
+                const diff = new Date(now - startTime);
+                const hrs = String(diff.getUTCHours()).padStart(2, '0');
+                const mins = String(diff.getUTCMinutes()).padStart(2, '0');
+                const secs = String(diff.getUTCSeconds()).padStart(2, '0');
+                document.getElementById('timer').innerText = `Durasi: ${hrs}:${mins}:${secs}`;
+            }, 1000);
+        }
+
+        async function fileToBase64(file) {
+            if (!file) return "";
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function stopAndSubmit() {
+            const pic = document.getElementById('input-pic').value.trim();
+            if (!pic) {
+                alert("Harap isi Nama PIC sebelum mengirim!");
+                return;
+            }
+
+            clearInterval(timerInterval);
+            const durationText = document.getElementById('timer').innerText.replace('Durasi: ', '');
+            
+            const btnStop = document.getElementById('btn-stop');
+            btnStop.disabled = true;
+            btnStop.innerText = "Mengirim...";
+
+            const fileMulai = document.getElementById('input-img-mulai').files[0];
+            const fileSelesai = document.getElementById('input-img-selesai').files[0];
+
+            const imgMulaiBase64 = fileMulai ? await fileToBase64(fileMulai) : "";
+            const imgSelesaiBase64 = fileSelesai ? await fileToBase64(fileSelesai) : "";
+
+            const payload = {
+                pic: pic,
+                tujuan: document.getElementById('input-tujuan').value.trim() || "-",
+                mobil: document.getElementById('input-mobil').value.trim() || "-",
+                box: document.getElementById('input-box').value || "0",
+                durasi: durationText,
+                status: document.getElementById('input-status').value,
+                ket: document.getElementById('input-ket').value.trim() || "-",
+                imgMulaiBase64: imgMulaiBase64,
+                imgSelesaiBase64: imgSelesaiBase64
+            };
+
+            try {
+                await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                alert("Data loading berhasil dikirim!");
+                
+                // Reset Form
+                document.getElementById('input-pic').value = "";
+                document.getElementById('input-tujuan').value = "";
+                document.getElementById('input-mobil').value = "";
+                document.getElementById('input-box').value = "";
+                document.getElementById('input-ket').value = "";
+                document.getElementById('input-img-mulai').value = "";
+                document.getElementById('input-img-selesai').value = "";
+                document.getElementById('timer').innerText = "Durasi: 00:00:00";
+                document.getElementById('btn-start').disabled = false;
+                
+                // Ambil ulang data terbaru dari Sheet
+                setTimeout(fetchMasterData, 3000);
+            } catch (err) {
+                alert("Gagal mengirim data. Periksa koneksi internet.");
+            } finally {
+                btnStop.innerText = "⏹ Selesai & Kirim";
+            }
+        }
+
+        // FUNGSI DASAR DASHBOARD
         function getFlexibleValue(row, keywords) {
             const keys = Object.keys(row);
             for (let kw of keywords) {
@@ -236,7 +392,6 @@
                         const status = getFlexibleValue(row, ["target", "status", "achieve"]) || "Pending";
                         const ket = getFlexibleValue(row, ["keterangan", "ket", "note", "catatan"]) || "-";
                         
-                        // Ekstraksi Khusus Link Gambar Google Drive
                         const imgMulai = getFlexibleValue(row, ["gambar mulai", "foto mulai", "mulai"]);
                         const imgSelesai = getFlexibleValue(row, ["gambar selesai", "foto selesai", "selesai"]);
 
