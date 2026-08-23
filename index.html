@@ -60,11 +60,12 @@
         /* Table Styling */
         .table-card { background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; }
         .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-        th { background-color: #f8fafc; color: var(--text-muted); padding: 12px 10px; border-bottom: 1px solid #e2e8f0; }
-        td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        th { background-color: #f8fafc; color: var(--text-muted); padding: 10px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        td { padding: 10px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
         .text-danger { color: var(--danger-color); font-weight: 600; }
         .text-success { color: var(--success-color); font-weight: 600; }
+        .link-img { color: var(--primary-color); text-decoration: none; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -108,11 +109,24 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Bulan</th><th>Tgl</th><th>PIC</th><th>Tujuan</th><th>Mobil</th><th>Box</th><th>Durasi</th><th>Status</th>
+                            <th>Bulan</th>
+                            <th>Tanggal</th>
+                            <th>Nama PIC</th>
+                            <th>Tujuan Pengiriman</th>
+                            <th>Jenis Mobil</th>
+                            <th>Mulai</th>
+                            <th>Selesai</th>
+                            <th>Jumlah Box</th>
+                            <th>Jumlah PIC</th>
+                            <th>Durasi Loading</th>
+                            <th>Target</th>
+                            <th>Keterangan</th>
+                            <th>Gambar Mulai</th>
+                            <th>Gambar Selesai</th>
                         </tr>
                     </thead>
                     <tbody id="dashboardTableBody">
-                        <tr><td colspan="8" style="text-align: center;">Memuat data...</td></tr>
+                        <tr><td colspan="14" style="text-align: center;">Memuat data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -126,19 +140,23 @@
             <form id="shipmentForm">
                 <div class="form-group">
                     <label>Nama PIC</label>
-                    <input type="text" id="pic" placeholder="Contoh: Adam" required>
+                    <input type="text" id="pic" placeholder="Contoh: Olifia Ekmanda" required>
                 </div>
                 <div class="form-group">
-                    <label>Tujuan</label>
+                    <label>Tujuan Pengiriman</label>
                     <input type="text" id="tujuan" placeholder="Contoh: Bandung" required>
                 </div>
                 <div class="form-group">
                     <label>Jenis Mobil</label>
-                    <input type="text" id="jenisMobil" placeholder="Contoh: CDE / CDD" required>
+                    <input type="text" id="jenisMobil" placeholder="Contoh: Engkel Kecil" required>
                 </div>
                 <div class="form-group">
                     <label>Jumlah Box</label>
                     <input type="number" id="jumlahBox" placeholder="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Jumlah PIC</label>
+                    <input type="number" id="jumlahPIC" value="2" required>
                 </div>
                 <div class="form-group">
                     <label>Status Target</label>
@@ -157,11 +175,8 @@
     </div>
 </div>
 
-<!-- JAVASCRIPT WAJIB BERADA DI DALAM TAG SCRIPT INI -->
 <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
-    
-    // Ganti string di bawah dengan URL Google Apps Script Web App kamu jika sudah ada
     const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT";
 
     let picChartInstance = null;
@@ -186,15 +201,22 @@
             for (let i = 1; i < rows.length; i++) {
                 const r = rows[i];
                 if (r.length > 1 && r.some(cell => cell.trim() !== '')) {
+                    // Pemetaan berdasarkan urutan kolom di gambar Spreadsheet
                     dataList.push({
                         bulan: r[0] || '-',
-                        waktu: r[1] || '-',
+                        tanggal: r[1] || '-',
                         pic: r[2] || 'Unassigned',
                         tujuan: r[3] || 'Lainnya',
                         jenisMobil: r[4] || '-',
-                        box: r[5] || '0',
-                        durasi: r[6] || '-',
-                        statusTarget: r[7] || '-'
+                        mulai: r[5] || '-',
+                        selesai: r[6] || '-',
+                        jumlahBox: r[7] || '0',
+                        jumlahPIC: r[8] || '0',
+                        durasi: r[9] || '-',
+                        target: r[10] || '-',
+                        keterangan: r[11] || '-',
+                        gambarMulai: r[12] || '',
+                        gambarSelesai: r[13] || ''
                     });
                 }
             }
@@ -232,7 +254,7 @@
         const picStats = {}, destStats = {};
 
         data.forEach(item => {
-            const status = (item.statusTarget || '').toLowerCase();
+            const status = (item.target || '').toLowerCase();
             const isAchieve = status.includes('achieve') && !status.includes('not');
             
             if (isAchieve) achieve++; else notAchieve++;
@@ -245,13 +267,19 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${item.bulan}</td>
-                <td>${item.waktu}</td>
+                <td>${item.tanggal}</td>
                 <td>${item.pic}</td>
                 <td>${item.tujuan}</td>
                 <td>${item.jenisMobil}</td>
-                <td>${item.box}</td>
+                <td>${item.mulai}</td>
+                <td>${item.selesai}</td>
+                <td>${item.jumlahBox}</td>
+                <td>${item.jumlahPIC}</td>
                 <td>${item.durasi}</td>
-                <td class="${isAchieve ? 'text-success' : 'text-danger'}">${item.statusTarget}</td>
+                <td class="${isAchieve ? 'text-success' : 'text-danger'}">${item.target}</td>
+                <td>${item.keterangan}</td>
+                <td>${item.gambarMulai ? `<a href="${item.gambarMulai}" target="_blank" class="link-img">Lihat Foto</a>` : '-'}</td>
+                <td>${item.gambarSelesai ? `<a href="${item.gambarSelesai}" target="_blank" class="link-img">Lihat Foto</a>` : '-'}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -292,7 +320,7 @@
             type: 'doughnut',
             data: {
                 labels: Object.keys(destStats),
-                datasets: [{ data: Object.values(destStats), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'] }]
+                datasets: [{ data: Object.values(destStats), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'] }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
         });
@@ -320,13 +348,19 @@
         
         const payload = {
             bulan: namaBulan[now.getMonth()],
-            waktu: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
+            tanggal: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
             pic: document.getElementById('pic').value,
             tujuan: document.getElementById('tujuan').value,
             jenisMobil: document.getElementById('jenisMobil').value,
+            mulai: `${startTime.getHours()}:${startTime.getMinutes()}`,
+            selesai: `${now.getHours()}:${now.getMinutes()}`,
             jumlahBox: document.getElementById('jumlahBox').value,
+            jumlahPIC: document.getElementById('jumlahPIC').value,
             durasi: document.getElementById('timerDisplay').innerText,
-            statusTarget: document.getElementById('statusTarget').value
+            target: document.getElementById('statusTarget').value,
+            keterangan: '',
+            gambarMulai: '',
+            gambarSelesai: ''
         };
 
         if (WEB_APP_URL !== "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT") {
@@ -335,7 +369,7 @@
                 alert('Data berhasil disimpan ke Spreadsheet!');
             } catch (e) { console.error(e); }
         } else {
-            alert('Data selesai diproses (Belum terhubung Web App Google Apps Script).');
+            alert('Data selesai diproses.');
         }
 
         document.getElementById('shipmentForm').reset();
