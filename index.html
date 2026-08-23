@@ -276,6 +276,7 @@
     const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT";
 
     let rawDataList = [];
+    let localSubmissions = JSON.parse(localStorage.getItem('localShipmentData')) || [];
     let picChartInstance = null;
     let destChartInstance = null;
     let startTime = null;
@@ -289,10 +290,8 @@
         document.getElementById('btnTabInput').classList.toggle('active', tabName === 'input');
         document.getElementById('btnTabDashboard').classList.toggle('active', tabName === 'dashboard');
 
-        // Jika pindah ke tab dashboard, refresh sinkronisasi tampilan
         if(tabName === 'dashboard') {
-            populateFilterDropdowns(rawDataList);
-            applyFilters();
+            loadSpreadsheetData();
         }
     }
 
@@ -393,6 +392,7 @@
         const base64Selesai = await fileToBase64(fileSelesai);
 
         const newItem = {
+            id: Date.now(),
             bulan: namaBulan[now.getMonth()],
             tanggal: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
             pic: picVal,
@@ -404,18 +404,19 @@
             jumlahPIC: document.getElementById('jumlahPIC').value,
             durasi: document.getElementById('timerDisplay').innerText,
             target: currentStatus,
-            keterangan: keteranganVal,
+            keterangan: keteranganVal || '-',
             gambarMulai: base64Mulai,
             gambarSelesai: base64Selesai
         };
 
-        // SINKRONISASI INSTAN: Tambahkan data ke array lokal
-        rawDataList.unshift(newItem);
+        // SIMPAN KE STORAGE LOKAL (INSTAN & REALTIME)
+        localSubmissions.unshift(newItem);
+        localStorage.setItem('localShipmentData', JSON.stringify(localSubmissions));
 
-        // Kirim ke Google Apps Script / Spreadsheet (Jika URL diset)
+        // KIRIM KE GOOGLE APPS SCRIPT JIKA URL SUDAH DIPASANG
         if (WEB_APP_URL !== "GANTI_DENGAN_URL_WEB_APP_HASIL_DEPLOY_APPS_SCRIPT") {
             try {
-                await fetch(WEB_APP_URL, { 
+                fetch(WEB_APP_URL, { 
                     method: 'POST', 
                     mode: 'no-cors', 
                     headers: { 'Content-Type': 'application/json' }, 
@@ -424,30 +425,30 @@
             } catch (e) { console.error(e); }
         }
 
-        alert(`Data berhasil disimpan! Status: ${currentStatus}`);
+        alert(`Data Berhasil Disimpan & Masuk Dashboard!\nStatus: ${currentStatus}`);
 
-        // Reset Form
+        // RESET FORM
         document.getElementById('shipmentForm').reset();
         document.getElementById('timerDisplay').innerText = "00:00:00";
         document.getElementById('keterangan').classList.remove('required-error');
         document.getElementById('reqBadge').style.display = 'none';
         startTime = null;
         
-        // Pindah dan perbarui Dashboard Analytics langsung
+        // Pindah dan Perbarui Dashboard
         switchTab('dashboard');
     }
 
     async function loadSpreadsheetData() {
+        let fetchedCSVData = [];
         try {
-            const response = await fetch(CSV_URL);
+            const response = await fetch(CSV_URL + "&t=" + new Date().getTime());
             const csvText = await response.text();
             const rows = parseCSV(csvText);
 
-            const fetchedData = [];
             for (let i = 1; i < rows.length; i++) {
                 const r = rows[i];
                 if (r.length > 1 && r.some(cell => cell.trim() !== '')) {
-                    fetchedData.push({
+                    fetchedCSVData.push({
                         bulan: r[0] || '-',
                         tanggal: r[1] || '-',
                         pic: r[2] || 'Unassigned',
@@ -465,24 +466,18 @@
                     });
                 }
             }
-
-            // Gabungkan data dari CSV dengan input baru yang belum ada di CSV
-            if(rawDataList.length === 0) {
-                rawDataList = fetchedData;
-            } else {
-                // Pertahankan input baru lokal di atas data Spreadsheet
-                const newLocalItems = rawDataList.filter(item => item.gambarMulai.startsWith('data:'));
-                rawDataList = [...newLocalItems, ...fetchedData];
-            }
-
-            populateFilterDropdowns(rawDataList);
-            applyFilters();
-
-            const now = new Date();
-            document.getElementById('lastUpdate').innerText = `(${now.getHours().toString().padStart(2,'0')}.${now.getMinutes().toString().padStart(2,'0')})`;
         } catch (err) {
             console.error("Gagal membaca CSV:", err);
         }
+
+        // GABUNGKAN DATA LOKAL (Terbaru) + DATA SPREADSHEET (CSV)
+        rawDataList = [...localSubmissions, ...fetchedCSVData];
+
+        populateFilterDropdowns(rawDataList);
+        applyFilters();
+
+        const now = new Date();
+        document.getElementById('lastUpdate').innerText = `(${now.getHours().toString().padStart(2,'0')}.${now.getMinutes().toString().padStart(2,'0')})`;
     }
 
     function parseCSV(text) {
@@ -560,6 +555,10 @@
         const tbody = document.getElementById('dashboardTableBody');
         tbody.innerHTML = '';
 
+        if(data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" style="text-align: center;">Belum ada data shipment.</td></tr>';
+        }
+
         let achieve = 0, notAchieve = 0;
         const picStats = {}, destStats = {};
 
@@ -588,8 +587,8 @@
                 <td>${item.durasi}</td>
                 <td class="${isAchieve ? 'text-success' : 'text-danger'}">${item.target}</td>
                 <td>${item.keterangan}</td>
-                <td>${item.gambarMulai ? `<a href="${item.gambarMulai}" target="_blank" class="link-img">Lihat Foto</a>` : '-'}</td>
-                <td>${item.gambarSelesai ? `<a href="${item.gambarSelesai}" target="_blank" class="link-img">Lihat Foto</a>` : '-'}</td>
+                <td>${item.gambarMulai && item.gambarMulai !== '-' ? `<a href="${item.gambarMulai}" target="_blank" class="link-img">Lihat Foto</a>` : '-'}</td>
+                <td>${item.gambarSelesai && item.gambarSelesai !== '-' ? `<a href="${item.gambarSelesai}" target="_blank" class="link-img">Lihat Foto</a>` : '-'}</td>
             `;
             tbody.appendChild(tr);
         });
