@@ -59,7 +59,7 @@
         .form-card { background: var(--card-bg); padding: 25px; border-radius: 10px; border: 1px solid #e2e8f0; max-width: 600px; margin: 0 auto; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 5px; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fff; }
         .timer-box { background: #f8fafc; text-align: center; padding: 15px; border-radius: 8px; font-size: 24px; font-weight: 700; color: var(--primary-color); margin-bottom: 15px; border: 1px solid #e2e8f0; }
         .btn-action { width: 100%; padding: 12px; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-bottom: 10px; }
         .btn-start { background: var(--success-color); color: white; }
@@ -79,36 +79,75 @@
 <body>
 
 <div class="container">
-    <!-- NAVIGATION TABS (FORM DI HALAMAN DEPAN) -->
+    <!-- NAVIGATION TABS -->
     <div class="nav-tabs">
         <button id="btnTabInput" class="tab-btn active" onclick="switchTab('input')">Form Input Loading</button>
         <button id="btnTabDashboard" class="tab-btn" onclick="switchTab('dashboard')">Dashboard Analytics</button>
     </div>
 
-    <!-- HALAMAN FORM INPUT (DITAMPILKAN PERTAMA) -->
+    <!-- HALAMAN FORM INPUT -->
     <div id="pageInput">
         <div class="form-card">
             <h2 style="margin-bottom: 20px; font-size: 18px;">Input Loading Shipment</h2>
             <form id="shipmentForm">
+                <!-- DROPDOWN NAMA PIC -->
                 <div class="form-group">
                     <label>Nama PIC</label>
-                    <input type="text" id="pic" placeholder="Contoh: Olifia Ekmanda" required>
+                    <select id="pic" required>
+                        <option value="" disabled selected>Pilih Nama PIC...</option>
+                        <option value="Yuniarti">Yuniarti</option>
+                        <option value="Eka Febri Setiardi">Eka Febri Setiardi</option>
+                        <option value="Riri Ridwan Genta Yudha">Riri Ridwan Genta Yudha</option>
+                        <option value="Adam Rayhan">Adam Rayhan</option>
+                        <option value="Aji Kurnianto">Aji Kurnianto</option>
+                        <option value="Alek Handoko">Alek Handoko</option>
+                        <option value="Amelia Putri">Amelia Putri</option>
+                        <option value="Tasya Amellia">Tasya Amellia</option>
+                        <option value="Olifia Ekmanda">Olifia Ekmanda</option>
+                    </select>
                 </div>
+
+                <!-- DROPDOWN TUJUAN PENGIRIMAN -->
                 <div class="form-group">
                     <label>Tujuan Pengiriman</label>
-                    <input type="text" id="tujuan" placeholder="Contoh: Bandung" required>
+                    <select id="tujuan" required>
+                        <option value="" disabled selected>Pilih Tujuan Pengiriman...</option>
+                        <option value="Bandung">Bandung</option>
+                        <option value="Yogyakarta">Yogyakarta</option>
+                        <option value="Tangerang">Tangerang</option>
+                        <option value="Jakarta Utara">Jakarta Utara</option>
+                        <option value="Jakarta Pusat">Jakarta Pusat</option>
+                        <option value="Jakarta Barat">Jakarta Barat</option>
+                        <option value="Semarang">Semarang</option>
+                        <option value="Medan">Medan</option>
+                        <option value="Surabaya Barat">Surabaya Barat</option>
+                        <option value="Surabaya Timur">Surabaya Timur</option>
+                        <option value="Makasar">Makasar</option>
+                        <option value="Cikupa">Cikupa</option>
+                    </select>
                 </div>
+
+                <!-- DROPDOWN JENIS MOBIL -->
                 <div class="form-group">
                     <label>Jenis Mobil</label>
-                    <input type="text" id="jenisMobil" placeholder="Contoh: Engkel Kecil" required>
+                    <select id="jenisMobil" required>
+                        <option value="" disabled selected>Pilih Jenis Mobil...</option>
+                        <option value="Double Jumbo">Double Jumbo</option>
+                        <option value="Engkel Kecil">Engkel Kecil</option>
+                        <option value="Engkel Sedang">Engkel Sedang</option>
+                        <option value="Double Bisa">Double Bisa</option>
+                        <option value="Double Besi">Double Besi</option>
+                        <option value="L300">L300</option>
+                    </select>
                 </div>
+
                 <div class="form-group">
                     <label>Jumlah Box</label>
                     <input type="number" id="jumlahBox" placeholder="0" required>
                 </div>
                 <div class="form-group">
                     <label>Jumlah PIC</label>
-                    <input type="number" id="jumlahPIC" value="2" required>
+                    <input type="number" id="jumlahPIC" value="0" required>
                 </div>
                 <div class="form-group">
                     <label>Status Target</label>
@@ -442,15 +481,24 @@
 
         const now = new Date();
         const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-        
+
+        const picVal = document.getElementById('pic').value;
+        const tujuanVal = document.getElementById('tujuan').value;
+        const mobilVal = document.getElementById('jenisMobil').value;
+
+        if (!picVal || !tujuanVal || !mobilVal) {
+            alert('Mohon lengkapi pilihan PIC, Tujuan, dan Jenis Mobil!');
+            return;
+        }
+
         const payload = {
             bulan: namaBulan[now.getMonth()],
             tanggal: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
-            pic: document.getElementById('pic').value,
-            tujuan: document.getElementById('tujuan').value,
-            jenisMobil: document.getElementById('jenisMobil').value,
-            mulai: `${startTime.getHours()}:${startTime.getMinutes()}`,
-            selesai: `${now.getHours()}:${now.getMinutes()}`,
+            pic: picVal,
+            tujuan: tujuanVal,
+            jenisMobil: mobilVal,
+            mulai: `${startTime.getHours().toString().padStart(2,'0')}:${startTime.getMinutes().toString().padStart(2,'0')}`,
+            selesai: `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`,
             jumlahBox: document.getElementById('jumlahBox').value,
             jumlahPIC: document.getElementById('jumlahPIC').value,
             durasi: document.getElementById('timerDisplay').innerText,
