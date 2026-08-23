@@ -79,13 +79,55 @@
 <body>
 
 <div class="container">
+    <!-- NAVIGATION TABS (FORM DI HALAMAN DEPAN) -->
     <div class="nav-tabs">
-        <button id="btnTabDashboard" class="tab-btn active" onclick="switchTab('dashboard')">Dashboard Analytics</button>
-        <button id="btnTabInput" class="tab-btn" onclick="switchTab('input')">Form Input Loading</button>
+        <button id="btnTabInput" class="tab-btn active" onclick="switchTab('input')">Form Input Loading</button>
+        <button id="btnTabDashboard" class="tab-btn" onclick="switchTab('dashboard')">Dashboard Analytics</button>
     </div>
 
-    <!-- HALAMAN DASHBOARD -->
-    <div id="pageDashboard">
+    <!-- HALAMAN FORM INPUT (DITAMPILKAN PERTAMA) -->
+    <div id="pageInput">
+        <div class="form-card">
+            <h2 style="margin-bottom: 20px; font-size: 18px;">Input Loading Shipment</h2>
+            <form id="shipmentForm">
+                <div class="form-group">
+                    <label>Nama PIC</label>
+                    <input type="text" id="pic" placeholder="Contoh: Olifia Ekmanda" required>
+                </div>
+                <div class="form-group">
+                    <label>Tujuan Pengiriman</label>
+                    <input type="text" id="tujuan" placeholder="Contoh: Bandung" required>
+                </div>
+                <div class="form-group">
+                    <label>Jenis Mobil</label>
+                    <input type="text" id="jenisMobil" placeholder="Contoh: Engkel Kecil" required>
+                </div>
+                <div class="form-group">
+                    <label>Jumlah Box</label>
+                    <input type="number" id="jumlahBox" placeholder="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Jumlah PIC</label>
+                    <input type="number" id="jumlahPIC" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label>Status Target</label>
+                    <select id="statusTarget">
+                        <option value="Achieve">Achieve</option>
+                        <option value="Not Achieve">Not Achieve</option>
+                    </select>
+                </div>
+
+                <div class="timer-box" id="timerDisplay">00:00:00</div>
+
+                <button type="button" class="btn-action btn-start" onclick="startLoading()">Mulai Loading</button>
+                <button type="button" class="btn-action btn-stop" onclick="stopAndSubmit()">Selesai & Simpan</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- HALAMAN DASHBOARD ANALYTICS -->
+    <div id="pageDashboard" style="display: none;">
         <div class="header-bar">
             <h1>Dashboard Monitoring Loading Shipment 2026</h1>
             <div class="status-badge">
@@ -166,47 +208,6 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-    </div>
-
-    <!-- HALAMAN FORM INPUT -->
-    <div id="pageInput" style="display: none;">
-        <div class="form-card">
-            <h2 style="margin-bottom: 20px; font-size: 18px;">Input Loading Shipment</h2>
-            <form id="shipmentForm">
-                <div class="form-group">
-                    <label>Nama PIC</label>
-                    <input type="text" id="pic" placeholder="Contoh: Olifia Ekmanda" required>
-                </div>
-                <div class="form-group">
-                    <label>Tujuan Pengiriman</label>
-                    <input type="text" id="tujuan" placeholder="Contoh: Bandung" required>
-                </div>
-                <div class="form-group">
-                    <label>Jenis Mobil</label>
-                    <input type="text" id="jenisMobil" placeholder="Contoh: Engkel Kecil" required>
-                </div>
-                <div class="form-group">
-                    <label>Jumlah Box</label>
-                    <input type="number" id="jumlahBox" placeholder="0" required>
-                </div>
-                <div class="form-group">
-                    <label>Jumlah PIC</label>
-                    <input type="number" id="jumlahPIC" value="2" required>
-                </div>
-                <div class="form-group">
-                    <label>Status Target</label>
-                    <select id="statusTarget">
-                        <option value="Achieve">Achieve</option>
-                        <option value="Not Achieve">Not Achieve</option>
-                    </select>
-                </div>
-
-                <div class="timer-box" id="timerDisplay">00:00:00</div>
-
-                <button type="button" class="btn-action btn-start" onclick="startLoading()">Mulai Loading</button>
-                <button type="button" class="btn-action btn-stop" onclick="stopAndSubmit()">Selesai & Simpan</button>
-            </form>
         </div>
     </div>
 </div>
@@ -296,7 +297,6 @@
             if (item.pic && item.pic !== 'Unassigned') picSet.add(item.pic);
         });
 
-        // Simpan nilai pilihan sebelumnya agar tidak ter-reset otomatis jika re-fetch
         const currentBulan = selectBulan.value;
         const currentPIC = selectPIC.value;
 
