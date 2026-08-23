@@ -279,6 +279,7 @@
 
 <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
+    const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA"; // Masukkan URL Web App Google Apps Script di sini
 
     let rawDataList = [];
     let rawCsvLines = [];
@@ -375,15 +376,49 @@
 
         clearInterval(timerInterval);
 
-        alert(`Data selesai diproses.\nStatus: ${currentStatus}\n\nCatatan: Silakan masukkan data ini langsung ke Google Sheets agar tercatat secara permanen dan tersinkron ke semua perangkat.`);
+        const now = new Date();
+        const diffSeconds = Math.floor((now - startTime) / 1000);
+        const hrs = Math.floor(diffSeconds / 3600).toString().padStart(2, '0');
+        const mins = Math.floor((diffSeconds % 3600) / 60).toString().padStart(2, '0');
+        const secs = (diffSeconds % 60).toString().padStart(2, '0');
+        const durasiStr = `${hrs}:${mins}:${secs}`;
 
-        document.getElementById('shipmentForm').reset();
-        document.getElementById('timerDisplay').innerText = "00:00:00";
-        document.getElementById('keterangan').classList.remove('required-error');
-        document.getElementById('reqBadge').style.display = 'none';
-        startTime = null;
-        
-        switchTab('dashboard');
+        const payload = {
+            pic: document.getElementById('pic').value,
+            tujuan: document.getElementById('tujuan').value,
+            jenisMobil: document.getElementById('jenisMobil').value,
+            jumlahBox: document.getElementById('jumlahBox').value,
+            jumlahPIC: document.getElementById('jumlahPIC').value,
+            mulai: startTime.toTimeString().split(' ')[0],
+            selesai: now.toTimeString().split(' ')[0],
+            durasi: durasiStr,
+            target: currentStatus === "Achieve" ? "Achieve" : "Not Achieve",
+            keterangan: keteranganVal || '-'
+        };
+
+        try {
+            document.querySelector('.btn-stop').innerText = "Menyimpan Data...";
+            await fetch(WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            alert('Data berhasil disimpan dan dikirim ke Google Sheets!');
+            document.getElementById('shipmentForm').reset();
+            document.getElementById('timerDisplay').innerText = "00:00:00";
+            document.getElementById('keterangan').classList.remove('required-error');
+            document.getElementById('reqBadge').style.display = 'none';
+            startTime = null;
+            
+            switchTab('dashboard');
+        } catch (err) {
+            console.error("Gagal menyimpan:", err);
+            alert('Terjadi kesalahan saat menyimpan data.');
+        } finally {
+            document.querySelector('.btn-stop').innerText = "Selesai & Simpan";
+        }
     }
 
     async function loadSpreadsheetData() {
