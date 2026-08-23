@@ -278,7 +278,6 @@
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
 
     let rawDataList = [];
-    let localSubmissions = JSON.parse(localStorage.getItem('localShipmentData')) || [];
     let picChartInstance = null;
     let destChartInstance = null;
     let startTime = null;
@@ -403,46 +402,7 @@
 
         clearInterval(timerInterval);
 
-        const now = new Date();
-        const namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-
-        const picVal = document.getElementById('pic').value;
-        const tujuanVal = document.getElementById('tujuan').value;
-        const mobilVal = document.getElementById('jenisMobil').value;
-
-        const base64Mulai = await fileToBase64(fileMulai);
-        const base64Selesai = await fileToBase64(fileSelesai);
-
-        const d = now.getDate().toString().padStart(2, '0');
-        const m = (now.getMonth() + 1).toString().padStart(2, '0');
-        const y = now.getFullYear();
-
-        const newItem = {
-            id: Date.now(),
-            bulan: namaBulan[now.getMonth()],
-            tanggal: `${d}/${m}/${y}`,
-            pic: picVal,
-            tujuan: tujuanVal,
-            jenisMobil: mobilVal,
-            mulai: `${startTime.getHours().toString().padStart(2,'0')}:${startTime.getMinutes().toString().padStart(2,'0')}`,
-            selesai: `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`,
-            jumlahBox: document.getElementById('jumlahBox').value,
-            jumlahPIC: document.getElementById('jumlahPIC').value,
-            durasi: document.getElementById('timerDisplay').innerText,
-            target: currentStatus,
-            keterangan: keteranganVal || '-',
-            gambarMulai: base64Mulai,
-            gambarSelesai: base64Selesai
-        };
-
-        localSubmissions.push(newItem);
-        try {
-            localStorage.setItem('localShipmentData', JSON.stringify(localSubmissions));
-        } catch (e) {
-            console.warn('LocalStorage penuh.');
-        }
-
-        alert(`Data Berhasil Disimpan & Masuk Dashboard!\nStatus: ${currentStatus}`);
+        alert(`Data selesai diproses.\nStatus: ${currentStatus}\n\nCatatan: Silakan masukkan data ini langsung ke Google Sheets agar tercatat secara permanen dan tersinkron ke semua perangkat.`);
 
         document.getElementById('shipmentForm').reset();
         document.getElementById('timerDisplay').innerText = "00:00:00";
@@ -456,7 +416,7 @@
     async function loadSpreadsheetData() {
         let fetchedCSVData = [];
         try {
-            // Mencegah cache browser di HP/Laptop agar data selalu realtime dari Sheets
+            // Mencegah cache browser agar data selalu diambil segar langsung dari Google Sheets
             const response = await fetch(CSV_URL + "&t=" + new Date().getTime(), { cache: "no-store" });
             const csvText = await response.text();
             const rows = parseCSV(csvText);
@@ -496,9 +456,8 @@
             console.error("Gagal membaca CSV:", err);
         }
 
-        // Ambil ulang localSubmissions terbaru
-        localSubmissions = JSON.parse(localStorage.getItem('localShipmentData')) || [];
-        rawDataList = [...localSubmissions, ...fetchedCSVData];
+        // Murni hanya membaca data dari Google Sheets (Tanpa LocalStorage)
+        rawDataList = fetchedCSVData;
 
         // Urutkan data berdasarkan tanggal
         rawDataList.sort((a, b) => {
