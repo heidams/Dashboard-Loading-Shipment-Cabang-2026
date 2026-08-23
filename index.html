@@ -222,7 +222,6 @@
                 </select>
             </div>
             <button class="btn-reset" onclick="resetFilters()">Reset Filter</button>
-            <!-- TOMBOL FITUR PENARIKAN DATA / BACKUP -->
             <button class="btn-backup" onclick="backupDataCSV()">📥 Download Backup CSV</button>
         </div>
 
@@ -282,7 +281,7 @@
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
 
     let rawDataList = [];
-    let rawCsvLines = []; // Menyimpan baris mentah CSV untuk keperluan backup
+    let rawCsvLines = [];
     let picChartInstance = null;
     let destChartInstance = null;
     let startTime = null;
@@ -393,9 +392,7 @@
             const response = await fetch(CSV_URL + "&t=" + new Date().getTime(), { cache: "no-store" });
             const csvText = await response.text();
             
-            // Simpan teks CSV mentah untuk kebutuhan backup file
             rawCsvLines = csvText;
-
             const rows = parseCSV(csvText);
 
             for (let i = 1; i < rows.length; i++) {
@@ -454,7 +451,6 @@
         document.getElementById('lastUpdate').innerText = `(${now.getHours().toString().padStart(2,'0')}.${now.getMinutes().toString().padStart(2,'0')})`;
     }
 
-    // FITUR PENARIKAN DATA / BACKUP CSV
     function backupDataCSV() {
         if (!rawCsvLines) {
             alert('Data belum termuat sempurna atau kosong.');
@@ -465,7 +461,6 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         
-        // Buat nama file otomatis dengan tanggal hari ini
         const d = new Date();
         const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         
