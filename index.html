@@ -1,34 +1,265 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <!-- Isian Tag Head Kamu -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring Loading Shipment 2026</title>
+    <!-- Library Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #22c55e;
+            --danger-color: #ef4444;
+            --bg-color: #f8fafc;
+        }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: var(--bg-color); }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .nav-buttons button { padding: 10px 20px; margin-left: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .nav-buttons button.active { background-color: var(--primary-color); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { background-color: #f1f5f9; }
+        .chart-container { height: 300px; margin-top: 20px; }
+        .img-preview { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
+    </style>
 </head>
 <body>
 
-    <!-- Seluruh Elemen HTML/Tampilan Kamu -->
+<div class="container">
+    <div class="header">
+        <h2>Dashboard Monitoring Loading Shipment 2026</h2>
+        <div class="nav-buttons">
+            <button id="btnTabInput" onclick="switchTab('input')">Input Operasional</button>
+            <button id="btnTabDashboard" class="active" onclick="switchTab('dashboard')">Dashboard Monitoring</button>
+        </div>
+    </div>
 
-    <!-- BUNGKUS KODE JAVASCRIPT DI SINI -->
-    <script>
-        const SCRIPT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
+    <!-- TAB 1: FORM INPUT -->
+    <div id="pageInput" class="tab-content">
+        <h3>Input Data Shipment</h3>
+        <form id="shipmentForm" onsubmit="event.preventDefault();">
+            <p><label>PIC: <input type="text" id="pic"></label></p>
+            <p><label>Tujuan: <input type="text" id="tujuan"></label></p>
+            <p><label>Jenis Mobil: <input type="text" id="jenisMobil"></label></p>
+            <p><label>Jumlah Box: <input type="number" id="jumlahBox"></label></p>
+            <p><label>Status Target: 
+                <select id="statusTarget">
+                    <option value="Achieve">Achieve</option>
+                    <option value="Not Achieve">Not Achieve</option>
+                </select>
+            </label></p>
+            <p><label>Keterangan: <input type="text" id="keterangan"></label></p>
+            <p><label>Foto Mulai: <input type="file" id="fotoMulai" accept="image/*"></label></p>
+            <p><label>Foto Selesai: <input type="file" id="fotoSelesai" accept="image/*"></label></p>
+            <p>Timer: <span id="timerDisplay">00:00:00</span></p>
+            <button type="button" onclick="startLoading()">Mulai Loading</button>
+            <button type="button" onclick="stopAndSubmit()">Selesai & Submit</button>
+        </form>
+    </div>
 
-        let myChart = null;
-        let startTime = null;
-        let timerInterval = null;
+    <!-- TAB 2: DASHBOARD -->
+    <div id="pageDashboard" class="tab-content active">
+        <h3>Data Real-time Loading Shipment</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Waktu</th>
+                    <th>PIC</th>
+                    <th>Tujuan</th>
+                    <th>Jenis Mobil</th>
+                    <th>Box</th>
+                    <th>Durasi</th>
+                    <th>Status</th>
+                    <th>Foto Mulai</th>
+                    <th>Foto Selesai</th>
+                </tr>
+            </thead>
+            <tbody id="dashboardTableBody">
+                <tr><td colspan="9" style="text-align: center;">Memuat data...</td></tr>
+            </tbody>
+        </table>
 
-        function switchTab(tabName) {
-            // logika switch tab...
+        <div class="chart-container">
+            <canvas id="shipmentChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SCRIPT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
+
+    let myChart = null;
+    let startTime = null;
+    let timerInterval = null;
+
+    function switchTab(tabName) {
+        const pageInput = document.getElementById('pageInput');
+        const pageDashboard = document.getElementById('pageDashboard');
+        const btnInput = document.getElementById('btnTabInput');
+        const btnDashboard = document.getElementById('btnTabDashboard');
+
+        if (tabName === 'input') {
+            pageInput.classList.add('active');
+            pageDashboard.classList.remove('active');
+            btnInput.classList.add('active');
+            btnDashboard.classList.remove('active');
+        } else {
+            pageInput.classList.remove('active');
+            pageDashboard.classList.add('active');
+            btnInput.classList.remove('active');
+            btnDashboard.classList.add('active');
+        }
+    }
+
+    async function loadDataFromSpreadsheet() {
+        try {
+            const response = await fetch(SCRIPT_URL);
+            const csvText = await response.text();
+            const rows = parseCSV(csvText);
+
+            const dataList = [];
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (row.length > 1) {
+                    dataList.push({
+                        waktu: row[0] || '-',
+                        pic: row[1] || '-',
+                        tujuan: row[2] || '-',
+                        jenisMobil: row[3] || '-',
+                        jumlahBox: row[4] || '0',
+                        statusTarget: row[5] || '-',
+                        durasi: row[6] || '-',
+                        fotoMulai: row[7] || '',
+                        fotoSelesai: row[8] || ''
+                    });
+                }
+            }
+            renderDashboard(dataList);
+        } catch (error) {
+            console.error("Gagal mengambil data CSV:", error);
+        }
+    }
+
+    function parseCSV(text) {
+        let lines = text.split('\n');
+        return lines.map(line => {
+            let values = [];
+            let insideQuote = false;
+            let value = '';
+            
+            for (let char of line) {
+                if (char === '"' && insideQuote) {
+                    insideQuote = false;
+                } else if (char === '"' && !insideQuote) {
+                    insideQuote = true;
+                } else if (char === ',' && !insideQuote) {
+                    values.push(value.trim());
+                    value = '';
+                } else {
+                    value += char;
+                }
+            }
+            values.push(value.trim());
+            return values;
+        });
+    }
+
+    function renderDashboard(dataList) {
+        const tbody = document.getElementById('dashboardTableBody');
+        tbody.innerHTML = '';
+
+        let achieveCount = 0;
+        let notAchieveCount = 0;
+
+        if (dataList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #94a3b8;">Belum ada data...</td></tr>';
+            return;
         }
 
-        async function loadDataFromSpreadsheet() {
-            // logika load data...
+        dataList.forEach(item => {
+            if (item.statusTarget === 'Achieve') achieveCount++;
+            else if (item.statusTarget === 'Not Achieve') notAchieveCount++;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.waktu}</td>
+                <td>${item.pic}</td>
+                <td>${item.tujuan}</td>
+                <td>${item.jenisMobil}</td>
+                <td>${item.jumlahBox}</td>
+                <td>${item.durasi}</td>
+                <td><span style="color: ${item.statusTarget === 'Achieve' ? 'var(--success-color)' : 'var(--danger-color)'}; font-weight: bold;">${item.statusTarget}</span></td>
+                <td>${item.fotoMulai ? `<img src="${item.fotoMulai}" class="img-preview">` : '-'}</td>
+                <td>${item.fotoSelesai ? `<img src="${item.fotoSelesai}" class="img-preview">` : '-'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        updateChart(achieveCount, notAchieveCount);
+    }
+
+    function startLoading() {
+        startTime = new Date();
+        document.getElementById('timerDisplay').innerText = "00:00:00";
+        
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            const diff = new Date() - startTime;
+            const hrs = Math.floor(diff / 3600000).toString().padStart(2, '0');
+            const mins = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+            const secs = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${hrs}:${mins}:${secs}`;
+        }, 1000);
+        
+        alert('Proses loading dimulai!');
+    }
+
+    async function stopAndSubmit() {
+        if (!startTime) {
+            alert('Klik "Mulai Loading" terlebih dahulu!');
+            return;
         }
+        clearInterval(timerInterval);
+        alert('Data berhasil diproses!');
+        await loadDataFromSpreadsheet();
+        switchTab('dashboard');
+    }
 
-        // ... Sisa kode JavaScript lainnya ...
+    function initChart() {
+        const ctx = document.getElementById('shipmentChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Achieve', 'Not Achieve'],
+                datasets: [{
+                    label: 'Total Shipment',
+                    data: [0, 0],
+                    backgroundColor: ['#22c55e', '#ef4444']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
 
-        window.onload = function() {
-            initChart();
-            loadDataFromSpreadsheet();
-        };
-    </script>
+    function updateChart(achieve, notAchieve) {
+        if (myChart) {
+            myChart.data.datasets[0].data = [achieve, notAchieve];
+            myChart.update();
+        }
+    }
+
+    window.onload = function() {
+        initChart();
+        loadDataFromSpreadsheet();
+    };
+</script>
+
 </body>
 </html>
