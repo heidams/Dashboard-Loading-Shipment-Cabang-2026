@@ -1,37 +1,209 @@
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Cari tabel berdasarkan letak / struktur tabel Anda
-        const table = document.querySelector('table');
-        if (!table) return;
-
-        const tbody = table.querySelector('tbody') || table;
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-
-        // Filter baris yang memiliki data (mengabaikan header jika ada di tbody)
-        const dataRows = rows.filter(row => row.querySelectorAll('td').length > 0);
-
-        // Helper untuk parsing tanggal format DD/MM/YYYY
-        function parseDate(dateStr) {
-            if (!dateStr) return new Date(0);
-            const cleanStr = dateStr.trim();
-            const parts = cleanStr.split('/');
-            if (parts.length === 3) {
-                const day = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10) - 1;
-                const year = parseInt(parts[2], 10);
-                return new Date(year, month, day);
-            }
-            return new Date(cleanStr);
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Real-time Loading Shipment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            padding: 20px;
         }
 
-        // Urutkan dari tanggal terkecil ke terbesar (kolom ke-2 / Index 1)
-        dataRows.sort((a, b) => {
-            const cellA = a.querySelectorAll('td')[1]?.textContent || '';
-            const cellB = b.querySelectorAll('td')[1]?.textContent || '';
-            return parseDate(cellA) - parseDate(cellB);
+        .container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background-color: #f1f5f9;
+        }
+
+        .badge-achieve {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        .link-foto {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .link-foto:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Data Real-time Loading Shipment</h2>
+
+    <table id="shipmentTable">
+        <thead>
+            <tr>
+                <th>Bulan</th>
+                <th>Tanggal</th>
+                <th>Nama PIC</th>
+                <th>Tujuan Pengiriman</th>
+                <th>Jenis Mobil</th>
+                <th>Mulai</th>
+                <th>Selesai</th>
+                <th>Jumlah Box</th>
+                <th>Jumlah PIC</th>
+                <th>Durasi Loading</th>
+                <th>Target Status</th>
+                <th>Keterangan Kendala</th>
+                <th>Gambar Mulai</th>
+                <th>Gambar Selesai</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <!-- Data awal (acak/belum urut) -->
+            <tr>
+                <td>Agustus</td>
+                <td>24/08/2026</td>
+                <td>Adam Rayhan</td>
+                <td>Bandung</td>
+                <td>Double Jumbo</td>
+                <td>04:33</td>
+                <td>04:33</td>
+                <td>100</td>
+                <td>2</td>
+                <td>00:00:14</td>
+                <td><span class="badge-achieve">Achieve</span></td>
+                <td>uji coba</td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+            </tr>
+            <tr>
+                <td>Agustus</td>
+                <td>17/08/2026</td>
+                <td>Olifia Ekmanda</td>
+                <td>Bandung</td>
+                <td>Engkel Kecil</td>
+                <td>3:15</td>
+                <td>3:43</td>
+                <td>118</td>
+                <td>2</td>
+                <td>0:28:00</td>
+                <td><span class="badge-achieve">Achieve</span></td>
+                <td>-</td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+            </tr>
+            <tr>
+                <td>Agustus</td>
+                <td>17/08/2026</td>
+                <td>Olifia Ekmanda</td>
+                <td>Yogyakarta</td>
+                <td>Engkel Kecil</td>
+                <td>4:09</td>
+                <td>4:35</td>
+                <td>113</td>
+                <td>2</td>
+                <td>0:26:00</td>
+                <td><span class="badge-achieve">Achieve</span></td>
+                <td>-</td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+            </tr>
+            <tr>
+                <td>Agustus</td>
+                <td>18/08/2026</td>
+                <td>Olifia Ekmanda</td>
+                <td>Tangerang</td>
+                <td>Double Jumbo</td>
+                <td>1:34</td>
+                <td>2:18</td>
+                <td>230</td>
+                <td>2</td>
+                <td>0:44:00</td>
+                <td><span class="badge-achieve">Achieve</span></td>
+                <td>-</td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+            </tr>
+            <tr>
+                <td>Agustus</td>
+                <td>17/08/2026</td>
+                <td>Aji Kurnianto</td>
+                <td>Jakarta Utara</td>
+                <td>Double Jumbo</td>
+                <td>9:17</td>
+                <td>9:18</td>
+                <td>48</td>
+                <td>2</td>
+                <td>0:01:00</td>
+                <td><span class="badge-achieve">Achieve</span></td>
+                <td>-</td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+                <td><a href="#" class="link-foto">Lihat Foto</a></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Fungsi untuk mengubah string "DD/MM/YYYY" menjadi Date Object
+    function parseDate(dateStr) {
+        const parts = dateStr.trim().split('/');
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Month dimulai dari index 0 di JS
+        const year = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+    }
+
+    // Fungsi untuk mengurutkan baris tabel berdasarkan kolom tanggal (Index 1)
+    function sortTableByDate() {
+        const tbody = document.getElementById('tableBody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        rows.sort((rowA, rowB) => {
+            // Mengambil teks dari kolom ke-2 (index 1) yaitu Tanggal
+            const dateStrA = rowA.children[1].textContent;
+            const dateStrB = rowB.children[1].textContent;
+
+            const dateA = parseDate(dateStrA);
+            const dateB = parseDate(dateStrB);
+
+            // Sorting Ascending (Kecil ke Terbesar)
+            return dateA - dateB;
         });
 
-        // Masukkan kembali baris yang sudah urut tanpa merubah styling HTML/CSS bawaan
-        dataRows.forEach(row => tbody.appendChild(row));
-    });
+        // Masukkan kembali baris yang sudah diurutkan ke dalam tabel
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Jalankan fungsi sorting saat halaman selesai dimuat
+    document.addEventListener('DOMContentLoaded', sortTableByDate);
 </script>
+
+</body>
+</html>
