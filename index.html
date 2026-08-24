@@ -274,11 +274,11 @@
 <script>
     const BASE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
     
-    // Masukkan URL Web App Google Apps Script Anda di sini
+    // Pastikan URL Web App Google Apps Script Anda sudah dimasukkan di sini (berakhiran /exec)
     const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA"; 
 
     let rawDataList = [];
-    let rawCsvLines = [];
+    let rawCsvLines = "";
     let picChartInstance = null;
     let destChartInstance = null;
     let startTime = null;
@@ -350,7 +350,6 @@
         }, 1000);
     }
 
-    // Fungsi konversi file gambar ke Base64 agar mulus terkirim via HP/Laptop
     function getBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -390,7 +389,6 @@
         try {
             document.querySelector('.btn-stop').innerText = "Mengonversi Gambar...";
             
-            // Konversi file gambar ke Base64 supaya bisa diproses backend Google Sheets dengan aman
             const imgMulaiBase64 = await getBase64(fileMulai);
             const imgSelesaiBase64 = await getBase64(fileSelesai);
 
@@ -422,14 +420,12 @@
 
             alert('Data berhasil disimpan dan otomatis terkirim ke Google Sheets!');
             
-            // Reset Form State
             document.getElementById('shipmentForm').reset();
             document.getElementById('timerDisplay').innerText = "00:00:00";
             document.getElementById('keterangan').classList.remove('required-error');
             document.getElementById('reqBadge').style.display = 'none';
             startTime = null;
             
-            // Pindah ke tab Dashboard untuk melihat data terbaru
             setTimeout(() => { switchTab('dashboard'); }, 1000);
 
         } catch (err) {
@@ -443,7 +439,6 @@
     async function loadSpreadsheetData() {
         let fetchedCSVData = [];
         try {
-            // Timestamp agar browser tidak mengambil data dari cache lama
             const freshCSVUrl = BASE_CSV_URL + "&t=" + new Date().getTime();
             const response = await fetch(freshCSVUrl, { cache: "no-store" });
             const csvText = await response.text();
@@ -580,8 +575,6 @@
 
         let achieve = 0, notAchieve = 0;
         const picStats = {}, destStats = {};
-
-        // Urutkan data secara terbalik (dari yang terbaru di atas)
         const reversedData = [...data].reverse();
 
         reversedData.forEach(item => {
