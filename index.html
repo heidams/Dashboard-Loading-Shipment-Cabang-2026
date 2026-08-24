@@ -274,7 +274,7 @@
 <script>
     const BASE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRa50Mr58hg80Aj-iuGNIl2PkXgivx9cKcMN1iRgh-2ixbY7raFA1pDBtoUYa9oJs9w9lcHVaEy3yef/pub?gid=498101163&single=true&output=csv";
     
-    // Pastikan URL Web App Google Apps Script Anda sudah dimasukkan di sini (berakhiran /exec)
+    // URL Web App Google Apps Script Anda (pastikan berakhiran /exec)
     const WEB_APP_URL = "GANTI_DENGAN_URL_WEB_APP_GOOGLE_APPS_SCRIPT_ANDA"; 
 
     let rawDataList = [];
@@ -426,7 +426,9 @@
             document.getElementById('reqBadge').style.display = 'none';
             startTime = null;
             
-            setTimeout(() => { switchTab('dashboard'); }, 1000);
+            // Pindah ke dashboard dan paksa tarik data terbaru setelah 3 detik
+            switchTab('dashboard');
+            setTimeout(() => { loadSpreadsheetData(); }, 3000);
 
         } catch (err) {
             console.error("Gagal menyimpan:", err);
