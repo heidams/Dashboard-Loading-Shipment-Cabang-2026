@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sinkronisasi Pembaruan Data</title>
+    <title>Sinkronisasi Data Real-Time Antar Perangkat</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -31,14 +31,18 @@
         }
         .display-box {
             background: #eef2f7;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             text-align: center;
             margin-bottom: 20px;
             color: #2980b9;
             word-break: break-word;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .input-group {
             display: flex;
@@ -74,15 +78,27 @@
             text-align: center;
             margin-top: 15px;
         }
+        .status {
+            font-size: 11px;
+            color: #27ae60;
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
     </style>
+
+    <!-- Memuat Firebase SDK versi modular/compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
 
     <div class="container">
         <h2>Pusat Pembaruan Data</h2>
+        <div class="status" id="connectionStatus">Menghubungkan ke Cloud...</div>
         
         <div class="display-box" id="dataDisplay">
-            Belum ada data terbaru.
+            Memuat data...
         </div>
 
         <div class="input-group">
@@ -91,20 +107,35 @@
         </div>
 
         <div class="info">
-            Perubahan akan otomatis tersinkronisasi di perangkat yang terhubung.
+            Perubahan dari HP, Laptop, atau Komputer akan otomatis sinkron secara real-time!
         </div>
     </div>
 
     <script>
-        // Fungsi untuk mengambil dan menampilkan data
-        function muatData() {
-            const dataTersimpan = localStorage.getItem('updateTerbaru');
-            if (dataTersimpan) {
-                document.getElementById('dataDisplay').innerText = dataTersimpan;
-            }
-        }
+        // Konfigurasi Firebase Anda (Gratis & Aman untuk uji coba sinkronisasi)
+        const firebaseConfig = {
+            databaseURL: "https://dashboard-loading-shipment-default-rtdb.firebaseio.com/" 
+        };
 
-        // Fungsi untuk menyimpan data baru
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const dbRef = db.ref('updateTerbaru');
+
+        // Indikator koneksi
+        document.getElementById('connectionStatus').innerText = "Terhubung ke Cloud (Real-time Aktif)";
+
+        // Mendengarkan perubahan data secara real-time dari database cloud
+        dbRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data !== null) {
+                document.getElementById('dataDisplay').innerText = data;
+            } else {
+                document.getElementById('dataDisplay').innerText = "Belum ada data.";
+            }
+        });
+
+        // Fungsi untuk menyimpan data baru ke cloud
         function simpanData() {
             const nilaiInput = document.getElementById('dataInput').value;
             if (nilaiInput.trim() === "") {
@@ -112,22 +143,16 @@
                 return;
             }
 
-            // Simpan ke localStorage
-            localStorage.setItem('updateTerbaru', nilaiInput);
-            document.getElementById('dataInput').value = "";
-            muatData();
-            alert("Data berhasil diperbarui!");
+            // Kirim data ke Firebase Database
+            dbRef.set(nilaiInput)
+                .then(() => {
+                    document.getElementById('dataInput').value = "";
+                    // Tidak perlu alert mengganggu, karena layar akan otomatis berubah di semua perangkat
+                })
+                .catch((error) => {
+                    alert("Gagal menyimpan: " + error.message);
+                });
         }
-
-        // Mendengarkan perubahan data secara real-time antar tab/jendela
-        window.addEventListener('storage', function(event) {
-            if (event.key === 'updateTerbaru') {
-                muatData();
-            }
-        });
-
-        // Muat data saat halaman pertama kali dibuka
-        window.onload = muatData;
     </script>
 
 </body>
