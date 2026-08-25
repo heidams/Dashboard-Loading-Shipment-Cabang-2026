@@ -418,86 +418,318 @@
 }
 
     async function stopAndSubmit() {
-        if (!startTime) { alert('Klik "Mulai Loading" dulu!'); return; }
 
-        const fileMulai = document.getElementById('gambarMulai').files[0];
-        const fileSelesai = document.getElementById('gambarSelesai').files[0];
-        if (!fileMulai || !fileSelesai) {
-            alert('WAJIB melampirkan Gambar Mulai dan Selesai!'); return;
-        }
-
-        const keteranganVal = document.getElementById('keterangan').value.trim();
-        if (currentStatus === "Not Achieve" && keteranganVal === "") {
-            alert('Waktu loading melebihi target! Anda WAJIB mengisi Keterangan.');
-            document.getElementById('keterangan').focus();
-            return;
-        }
-
-        clearInterval(timerInterval);
-
-        const now = new Date();
-        const diffSeconds = Math.floor((now - startTime) / 1000);
-        const hrs = Math.floor(diffSeconds / 3600).toString().padStart(2, '0');
-        const mins = Math.floor((diffSeconds % 3600) / 60).toString().padStart(2, '0');
-        const secs = (diffSeconds % 60).toString().padStart(2, '0');
-        const durasiStr = `${hrs}:${mins}:${secs}`;
-
-        const formatTimeStr = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-
-        try {
-            document.querySelector('.btn-stop').innerText = "Mengonversi Gambar...";
-            
-            const imgMulaiBase64 = await getBase64(fileMulai);
-            const imgSelesaiBase64 = await getBase64(fileSelesai);
-
-            document.querySelector('.btn-stop').innerText = "Menyimpan Data...";
-
-            const payload = {
-                pic: document.getElementById('pic').value,
-                tujuan: document.getElementById('tujuan').value,
-                jenisMobil: document.getElementById('jenisMobil').value,
-                jumlahBox: document.getElementById('jumlahBox').value,
-                jumlahPIC: document.getElementById('jumlahPIC').value,
-                mulai: formatTimeStr(startTime),
-                selesai: formatTimeStr(now),
-                durasi: durasiStr,
-                target: currentStatus === "Achieve" ? "Achieve" : "Not Achieve",
-                keterangan: keteranganVal || '-',
-                gambarMulaiName: fileMulai.name,
-                gambarMulaiData: imgMulaiBase64,
-                gambarSelesaiName: fileSelesai.name,
-                gambarSelesaiData: imgSelesaiBase64
-            };
-
-            await fetch(WEB_APP_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-    },
-    body: JSON.stringify(payload)
-});
-
-            alert('Data berhasil disimpan dan otomatis terkirim ke Google Sheets!');
-            
-            document.getElementById('shipmentForm').reset();
-            document.getElementById('timerDisplay').innerText = "00:00:00";
-            document.getElementById('keterangan').classList.remove('required-error');
-            document.getElementById('reqBadge').style.display = 'none';
-            startTime = null;
-            
-            // Pindah ke dashboard dan paksa tarik data terbaru setelah 3 detik
-            switchTab('dashboard');
-            setTimeout(() => { loadSpreadsheetData(); }, 3000);
-
-        } catch (err) {
-            console.error("Gagal menyimpan:", err);
-            alert('Terjadi kesalahan saat mengunggah gambar/data.');
-        } finally {
-            document.querySelector('.btn-stop').innerText = "Selesai & Simpan";
-        }
+    if (!startTime) {
+        alert('Klik "Mulai Loading" dulu!');
+        return;
     }
 
+    const form = document.getElementById('shipmentForm');
+    const btnStop = document.querySelector('.btn-stop');
+
+    const fileMulai =
+        document.getElementById('gambarMulai').files[0];
+
+    const fileSelesai =
+        document.getElementById('gambarSelesai').files[0];
+
+    if (!fileMulai || !fileSelesai) {
+        alert('WAJIB melampirkan Gambar Mulai dan Selesai!');
+        return;
+    }
+
+    const keteranganInput =
+        document.getElementById('keterangan');
+
+    const keteranganVal =
+        keteranganInput.value.trim();
+
+    if (
+        currentStatus === "Not Achieve" &&
+        keteranganVal === ""
+    ) {
+
+        alert(
+            'Waktu loading melebihi target! Anda WAJIB mengisi Keterangan.'
+        );
+
+        keteranganInput.focus();
+
+        return;
+    }
+
+
+    // =========================
+    // STOP TIMER
+    // =========================
+
+    clearInterval(timerInterval);
+
+
+    // =========================
+    // HITUNG DURASI
+    // =========================
+
+    const now = new Date();
+
+    const diffSeconds =
+        Math.floor(
+            (now - startTime) / 1000
+        );
+
+    const hrs =
+        Math.floor(diffSeconds / 3600)
+            .toString()
+            .padStart(2, '0');
+
+    const mins =
+        Math.floor(
+            (diffSeconds % 3600) / 60
+        )
+            .toString()
+            .padStart(2, '0');
+
+    const secs =
+        (diffSeconds % 60)
+            .toString()
+            .padStart(2, '0');
+
+    const durasiStr =
+        `${hrs}:${mins}:${secs}`;
+
+
+    // =========================
+    // FORMAT JAM
+    // =========================
+
+    const formatTimeStr = (d) => {
+
+        return `${String(d.getHours()).padStart(2, '0')}:` +
+               `${String(d.getMinutes()).padStart(2, '0')}:` +
+               `${String(d.getSeconds()).padStart(2, '0')}`;
+
+    };
+
+
+    try {
+
+        btnStop.disabled = true;
+
+        btnStop.innerText =
+            "Mengompres gambar...";
+
+
+        // =========================
+        // CONVERT FOTO
+        // =========================
+
+        const imgMulaiBase64 =
+            await getBase64(fileMulai);
+
+        const imgSelesaiBase64 =
+            await getBase64(fileSelesai);
+
+
+        btnStop.innerText =
+            "Mengirim ke Google Sheets...";
+
+
+        // =========================
+        // DATA FORM
+        // =========================
+
+        const payload = {
+
+            pic:
+                document.getElementById('pic').value,
+
+            tujuan:
+                document.getElementById('tujuan').value,
+
+            jenisMobil:
+                document.getElementById('jenisMobil').value,
+
+            jumlahBox:
+                document.getElementById('jumlahBox').value,
+
+            jumlahPIC:
+                document.getElementById('jumlahPIC').value,
+
+            mulai:
+                formatTimeStr(startTime),
+
+            selesai:
+                formatTimeStr(now),
+
+            durasi:
+                durasiStr,
+
+            target:
+                currentStatus,
+
+            keterangan:
+                keteranganVal || "-",
+
+            gambarMulaiName:
+                fileMulai.name,
+
+            gambarMulaiData:
+                imgMulaiBase64,
+
+            gambarSelesaiName:
+                fileSelesai.name,
+
+            gambarSelesaiData:
+                imgSelesaiBase64
+
+        };
+
+
+        console.log("PAYLOAD:", payload);
+
+
+        // =========================
+        // KIRIM KE APPS SCRIPT
+        // =========================
+
+        const response =
+            await fetch(
+                WEB_APP_URL,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "text/plain;charset=utf-8"
+                    },
+
+                    body:
+                        JSON.stringify(payload)
+                }
+            );
+
+
+        // =========================
+        // BACA RESPONSE
+        // =========================
+
+        const result =
+            await response.json();
+
+
+        console.log(
+            "RESPONSE APPS SCRIPT:",
+            result
+        );
+
+
+        if (!result.success) {
+
+            throw new Error(
+                result.message ||
+                "Data gagal disimpan."
+            );
+
+        }
+
+
+        // =========================
+        // BERHASIL
+        // =========================
+
+        alert(
+            "✅ Data berhasil disimpan!\n\n" +
+            "Baris Google Sheets: " +
+            result.row
+        );
+
+
+        // =========================
+        // RESET FORM
+        // =========================
+
+        form.reset();
+
+        document.getElementById(
+            'timerDisplay'
+        ).innerText = "00:00:00";
+
+        document.getElementById(
+            'targetDisplay'
+        ).innerText = "-";
+
+        document.getElementById(
+            'statusDisplay'
+        ).innerText = "Achieve";
+
+        document.getElementById(
+            'statusDisplay'
+        ).className =
+            "status-alert achieve";
+
+        document.getElementById(
+            'keterangan'
+        ).classList.remove(
+            'required-error'
+        );
+
+        document.getElementById(
+            'reqBadge'
+        ).style.display = 'none';
+
+
+        // =========================
+        // RESET TIMER
+        // =========================
+
+        startTime = null;
+
+        timerInterval = null;
+
+        currentStatus = "Achieve";
+
+        targetSeconds = 0;
+
+
+        // =========================
+        // PINDAH DASHBOARD
+        // =========================
+
+        switchTab('dashboard');
+
+
+        // Tunggu sebentar supaya
+        // Google Sheets selesai update
+
+        setTimeout(() => {
+
+            loadSpreadsheetData();
+
+        }, 2000);
+
+
+    } catch (err) {
+
+        console.error(
+            "Gagal menyimpan:",
+            err
+        );
+
+        alert(
+            "❌ Data gagal disimpan.\n\n" +
+            err.message
+        );
+
+    } finally {
+
+        btnStop.disabled = false;
+
+        btnStop.innerText =
+            "Selesai & Simpan";
+
+    }
+
+}
     async function loadSpreadsheetData() {
         let fetchedCSVData = [];
         try {
